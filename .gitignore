@@ -37,6 +37,8 @@ phpmyfaq/content/core/data/*
 !phpmyfaq/content/core/data/.gitkeep
 phpmyfaq/content/core/logs/*
 !phpmyfaq/content/core/logs/.gitkeep
+phpmyfaq/content/core/sessions/*
+!phpmyfaq/content/core/sessions/.gitkeep
 phpmyfaq/content/core/cache/
 phpmyfaq/content/core/upgrades/*
 !phpmyfaq/content/core/upgrades/.gitkeep

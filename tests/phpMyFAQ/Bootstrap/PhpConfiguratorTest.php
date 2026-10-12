@@ -265,4 +265,44 @@ class PhpConfiguratorTest extends TestCase
         }
         rmdir($sessionDirectory);
     }
+
+    public function testConfigureSessionKeepsSessionDataForTheWholeLoginTimeout(): void
+    {
+        ini_set('session.gc_maxlifetime', '1440');
+
+        $configuration = $this->createMock(Configuration::class);
+        $configuration
+            ->method('get')
+            ->willReturnMap([
+                ['session.handler',  'files'],
+                ['session.redisDsn', ''],
+                ['session.savePath', ''],
+            ]);
+
+        PhpConfigurator::configureSession($configuration);
+
+        $this->assertSame((string) (PMF_AUTH_TIMEOUT * 60), ini_get('session.gc_maxlifetime'));
+    }
+
+    public function testConfigureSessionGarbageCollectsADedicatedSavePath(): void
+    {
+        $previousSavePath = (string) ini_get('session.save_path');
+        ini_set('session.gc_probability', '0');
+
+        $configuration = $this->createMock(Configuration::class);
+        $configuration
+            ->method('get')
+            ->willReturnMap([
+                ['session.handler',  'files'],
+                ['session.redisDsn', ''],
+                ['session.savePath', sys_get_temp_dir()],
+            ]);
+
+        PhpConfigurator::configureSession($configuration);
+
+        $this->assertSame(sys_get_temp_dir(), ini_get('session.save_path'));
+        $this->assertSame('1', ini_get('session.gc_probability'));
+
+        ini_set('session.save_path', $previousSavePath);
+    }
 }

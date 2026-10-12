@@ -72,10 +72,18 @@ class PhpConfigurator
             ini_set('session.cookie_httponly', value: '1');
             ini_set('session.cookie_secure', value: '1');
 
+            // Keep session data at least as long as the login session lasts; the PHP default
+            // of 24 minutes logs idle users out long before PMF_AUTH_TIMEOUT is reached.
+            ini_set('session.gc_maxlifetime', (string) (PMF_AUTH_TIMEOUT * 60));
+
             $sessionSavePath = trim((string) ($configuration?->get('session.savePath') ?? ''));
 
             if ($sessionSavePath !== '') {
                 ini_set('session.save_path', $sessionSavePath);
+                // Distribution cron jobs only clean the default save path, so PHP has to
+                // garbage-collect a dedicated one itself.
+                ini_set('session.gc_probability', value: '1');
+                ini_set('session.gc_divisor', value: '100');
             }
 
             $sessionHandler = strtolower((string) ($configuration?->get('session.handler') ?? 'files'));
