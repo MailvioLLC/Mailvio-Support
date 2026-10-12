@@ -162,4 +162,37 @@ class SeoRepositoryTest extends TestCase
         $this->assertTrue($this->repository->create($entity));
         $this->assertContains(SeoType::FAQ->value, $escapedValues);
     }
+
+    public function testGetLeavesThePassedEntityUntouched(): void
+    {
+        $entity = new SeoEntity()
+            ->setSeoType(SeoType::CATEGORY)
+            ->setReferenceId(3)
+            ->setReferenceLanguage('en')
+            ->setTitle('New SERP title')
+            ->setDescription('New SERP description');
+
+        $result = new class {};
+        $this->database->method('escape')->willReturnArgument(0);
+        $this->database->method('query')->willReturn($result);
+        $this->database->method('numRows')->willReturn(1);
+        $this->database
+            ->method('fetchObject')
+            ->willReturnOnConsecutiveCalls(
+                (object) [
+                    'id' => 7,
+                    'title' => '',
+                    'description' => '',
+                    'created' => new DateTime()->format('Y-m-d H:i:s'),
+                ],
+                null,
+            );
+
+        $stored = $this->repository->get($entity);
+
+        $this->assertSame(7, $stored->getId());
+        $this->assertSame('', $stored->getTitle());
+        $this->assertSame('New SERP title', $entity->getTitle());
+        $this->assertSame('New SERP description', $entity->getDescription());
+    }
 }

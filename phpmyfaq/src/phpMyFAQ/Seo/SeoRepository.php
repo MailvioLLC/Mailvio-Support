@@ -76,6 +76,10 @@ class SeoRepository implements SeoRepositoryInterface
 
         $result = $db->query($query);
 
+        // Fill a copy: callers pass entities that already carry new form values, which must
+        // survive the lookup so they can be saved afterwards
+        $storedSeoEntity = clone $seoEntity;
+
         if ($db->numRows($result) > 0) {
             while (true) {
                 $row = $db->fetchObject($result);
@@ -83,7 +87,7 @@ class SeoRepository implements SeoRepositoryInterface
                     break;
                 }
 
-                $seoEntity
+                $storedSeoEntity
                     ->setId((int) $row->id)
                     ->setTitle((string) $row->title)
                     ->setDescription((string) $row->description)
@@ -91,7 +95,7 @@ class SeoRepository implements SeoRepositoryInterface
             }
         }
 
-        return $seoEntity;
+        return $storedSeoEntity;
     }
 
     /**
