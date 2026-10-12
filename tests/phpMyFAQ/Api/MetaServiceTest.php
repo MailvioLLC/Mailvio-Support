@@ -76,9 +76,9 @@ final class MetaServiceTest extends TestCase
         $this->assertFalse($payload['enabledFeatures']['opensearch']);
         $this->assertFalse($payload['enabledFeatures']['signInWithMicrosoft']);
         $this->assertStringEndsWith('/assets/images/logo-transparent.svg', $payload['publicLogoUrl']);
-        $this->assertSame('#083c83', $payload['themeColors']['light']['--bs-primary']);
-        $this->assertSame('#ffffff', $payload['themeColors']['light']['--bs-body-bg']);
-        $this->assertSame('#14171d', $payload['themeColors']['dark']['--bs-body-bg']);
+        $this->assertSame('#b4d567', $payload['themeColors']['light']['--bs-primary']);
+        $this->assertSame('#fafafa', $payload['themeColors']['light']['--bs-body-bg']);
+        $this->assertSame('#09090b', $payload['themeColors']['dark']['--bs-body-bg']);
         $this->assertSame('#ffff00', $payload['themeColors']['highContrast']['--bs-primary']);
         $this->assertTrue($payload['oauthDiscovery']['enabled']);
         $this->assertStringEndsWith('/api', $payload['oauthDiscovery']['issuer']);
