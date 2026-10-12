@@ -1832,5 +1832,6 @@ $PMF_LANG['msgStatusPublished'] = 'Veröffentlicht';
 $PMF_LANG['msgStatusFilterAll'] = 'Alle Status';
 $PMF_LANG['msgInvalidFaqStatus'] = 'Ungültiger oder fehlender Statuswert.';
 $PMF_LANG['msgTwofactorLockedOut'] = 'Zu viele falsche Codes. Bitte versuchen Sie es später erneut.';
+$PMF_LANG['msgAskQuestionNavigation'] = 'Eine Frage stellen';
 
 return $PMF_LANG;

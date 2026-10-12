@@ -162,19 +162,21 @@ abstract class AbstractFrontController extends AbstractController
     {
         $action = $request->query->get(key: 'action', default: 'index');
 
+        $addFaqItem = [
+            'name' => Translation::get(key: 'msgAddContent'),
+            'link' => './add-faq.html',
+            'active' => 'add' === $action ? 'active' : '',
+        ];
+
         return [
             [
                 'name' => Translation::get(key: 'msgShowAllCategories'),
                 'link' => './show-categories.html',
                 'active' => 'show' === $action ? 'active' : '',
             ],
+            ...($this->userMayAddFaq() ? [$addFaqItem] : []),
             [
-                'name' => Translation::get(key: 'msgAddContent'),
-                'link' => './add-faq.html',
-                'active' => 'add' === $action ? 'active' : '',
-            ],
-            [
-                'name' => Translation::get(key: 'msgQuestion'),
+                'name' => Translation::get(key: 'msgAskQuestionNavigation'),
                 'link' => './add-question.html',
                 'active' => 'ask' === $action ? 'active' : '',
             ],
@@ -184,6 +186,21 @@ abstract class AbstractFrontController extends AbstractController
                 'active' => 'open-questions' === $action ? 'active' : '',
             ],
         ];
+    }
+
+    /**
+     * Mirrors FaqCreationService::canUserAddFaq(), which guards the add-FAQ page itself.
+     */
+    private function userMayAddFaq(): bool
+    {
+        if ($this->currentUser->getUserId() === -1) {
+            return filter_var(
+                $this->configuration->get(item: 'records.allowNewFaqsForGuests'),
+                FILTER_VALIDATE_BOOLEAN,
+            );
+        }
+
+        return $this->currentUser->perm->hasPermission($this->currentUser->getUserId(), PermissionType::FAQ_ADD->value);
     }
 
     /**

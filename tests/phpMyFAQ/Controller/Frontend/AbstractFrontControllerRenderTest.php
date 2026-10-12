@@ -203,6 +203,100 @@ final class AbstractFrontControllerRenderTest extends TestCase
     /**
      * @throws \Exception
      */
+    public function testTopNavigationHidesAddFaqForGuestsWhenGuestFaqsAreDisabled(): void
+    {
+        $controller = new AbstractFrontControllerRenderTestStub();
+        $controller->setContainer($this->createControllerContainer(
+            new Session(new MockArraySessionStorage()),
+            ['records.allowNewFaqsForGuests' => false],
+            false,
+            false,
+        ));
+
+        $header = $controller->fetchHeader(Request::create('https://localhost/index.php'));
+
+        self::assertNotContains('./add-faq.html', array_column($header['topNavigation'], 'link'));
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testTopNavigationShowsAddFaqForGuestsWhenGuestFaqsAreEnabled(): void
+    {
+        $controller = new AbstractFrontControllerRenderTestStub();
+        $controller->setContainer($this->createControllerContainer(
+            new Session(new MockArraySessionStorage()),
+            ['records.allowNewFaqsForGuests' => true],
+            false,
+            false,
+        ));
+
+        $header = $controller->fetchHeader(Request::create('https://localhost/index.php'));
+
+        self::assertContains('./add-faq.html', array_column($header['topNavigation'], 'link'));
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testTopNavigationHidesAddFaqForUsersWithoutAddPermission(): void
+    {
+        $controller = new AbstractFrontControllerRenderTestStub();
+        $controller->setContainer($this->createControllerContainer(
+            new Session(new MockArraySessionStorage()),
+            ['records.allowNewFaqsForGuests' => true],
+            true,
+            false,
+        ));
+
+        $header = $controller->fetchHeader(Request::create('https://localhost/index.php'));
+
+        self::assertNotContains('./add-faq.html', array_column($header['topNavigation'], 'link'));
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testTopNavigationShowsAddFaqForUsersWithAddPermission(): void
+    {
+        $controller = new AbstractFrontControllerRenderTestStub();
+        $controller->setContainer($this->createControllerContainer(
+            new Session(new MockArraySessionStorage()),
+            ['records.allowNewFaqsForGuests' => false],
+            true,
+            true,
+        ));
+
+        $header = $controller->fetchHeader(Request::create('https://localhost/index.php'));
+
+        self::assertContains('./add-faq.html', array_column($header['topNavigation'], 'link'));
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testTopNavigationLabelsTheQuestionLinkAsAskAQuestion(): void
+    {
+        $controller = new AbstractFrontControllerRenderTestStub();
+        $controller->setContainer($this->createControllerContainer(
+            new Session(new MockArraySessionStorage()),
+            [],
+            false,
+            false,
+        ));
+
+        $header = $controller->fetchHeader(Request::create('https://localhost/index.php'));
+        $questionItem = array_values(array_filter(
+            $header['topNavigation'],
+            static fn(array $item): bool => $item['link'] === './add-question.html',
+        ));
+
+        self::assertSame('Ask a question', $questionItem[0]['name']);
+    }
+
+    /**
+     * @throws \Exception
+     */
     public function testHandleStaticPageRedirectReturnsConfiguredExternalUrl(): void
     {
         $controller = new AbstractFrontControllerRenderTestStub();
