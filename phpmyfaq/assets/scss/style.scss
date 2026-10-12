@@ -13,6 +13,44 @@
  * @since     2010-01-17
  */
 
+// Mailvio brand — mirrors the design system of mailvio.com (Tailwind + shadcn
+// tokens). Set before Bootstrap's defaults so every compiled component (buttons,
+// pagination, focus rings, form controls, badges) picks up the brand.
+$primary: #b4d567; // hsl(78 57% 62%)
+$secondary: #52525b;
+$success: #65a30d;
+$info: #0ea5e9;
+$warning: #f59e0b;
+$danger: #ef4444;
+$light: #f4f4f5;
+$dark: #09090b;
+
+$body-color: #09090b;
+$body-bg: #fff;
+$border-color: #e4e4e7;
+$headings-color: #09090b;
+$headings-font-weight: 700;
+$color-contrast-dark: #09090b;
+
+// The brand green is too light for text on white, so links use a deeper shade
+// of the same hue (≈5:1 contrast).
+$link-color: #4d7c0f;
+$link-hover-color: #3f6212;
+$link-decoration: none;
+$link-hover-decoration: underline;
+
+$font-family-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+$font-family-sans-serif: ui-sans-serif, system-ui, sans-serif, $font-family-emoji;
+
+$border-radius: 0.625rem;
+$border-radius-sm: 0.5rem;
+$border-radius-lg: 0.75rem;
+$border-radius-xl: 1rem;
+
+$focus-ring-color: rgb(180, 213, 103, 0.45);
+$input-btn-focus-color: rgb(180, 213, 103, 0.45);
+$input-focus-border-color: #b4d567;
+
 @import '../../../node_modules/bootstrap/scss/functions';
 @import '../../../node_modules/bootstrap/scss/variables';
 
@@ -49,6 +87,7 @@ $bootstrap-icons-font-dir: '../../../node_modules/bootstrap-icons/font/fonts';
 @import 'layout/startpage';
 @import 'layout/ucp';
 @import 'layout/theme-switcher';
+@import 'layout/mailvio';
 
 $enable-gradients: true;
 $enable-shadows: true;

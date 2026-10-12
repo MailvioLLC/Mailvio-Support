@@ -6,8 +6,7 @@ h1.pmf-start-page {
   font-size: clamp(2.25rem, 5vw, 3.25rem);
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: var(--bs-primary);
-  background: linear-gradient(110deg, var(--bs-primary) 0%, var(--bs-secondary) 100%);
+  background: var(--mv-gradient-primary);
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -49,20 +48,122 @@ h1.pmf-start-page {
 .masonry-grid {
   padding-bottom: map-get($spacers, 4); // equals .mb-4 (≈1.5rem)
 
-  // Info cards: accent top edge + hover lift for a more tactile feel.
+  // Info cards: mailvio.com card language — white, rounded-xl, soft shadow
+  // that deepens on hover.
   .card {
-    border-top: 3px solid var(--pmf-accent);
+    border: 1px solid var(--pmf-border);
+    box-shadow: var(--pmf-shadow-sm);
     transition:
       transform var(--pmf-transition),
       box-shadow var(--pmf-transition);
 
     &:hover {
       transform: translateY(-4px);
-      box-shadow: var(--pmf-shadow-lg);
+      box-shadow: var(--pmf-shadow-md);
     }
 
-    .card-title i {
-      color: var(--pmf-accent);
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    ol,
+    ul {
+      margin-bottom: 0;
+    }
+
+    li:last-child {
+      border-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    h4 a {
+      color: var(--pmf-text);
+      font-weight: 600;
+      line-height: 1.4;
+
+      &:hover {
+        color: var(--pmf-link);
+        text-decoration: none;
+      }
     }
   }
+}
+
+// Card heading with a green icon tile (as in the mailvio.com menus)
+.mv-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+
+  i {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--pmf-radius-sm);
+    background-color: var(--pmf-accent-subtle);
+    color: var(--pmf-link);
+    font-size: 1.05rem;
+  }
+}
+
+// Small pill above the hero headline
+.mv-eyebrow {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid rgb(180, 213, 103, 0.35);
+  border-radius: 999px;
+  background-color: rgb(180, 213, 103, 0.12);
+  color: var(--mv-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+// Tag cloud chips
+.pmf-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0;
+}
+
+.mv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.85rem;
+  border: 1px solid var(--pmf-border);
+  border-radius: 999px;
+  background-color: var(--pmf-surface);
+  color: var(--pmf-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    border-color var(--pmf-transition),
+    background-color var(--pmf-transition);
+
+  &:hover {
+    border-color: var(--pmf-accent);
+    background-color: var(--pmf-accent-subtle);
+    color: var(--pmf-text);
+    text-decoration: none;
+  }
+}
+
+.mv-chip-count {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background-color: var(--pmf-surface-sunken);
+  color: var(--pmf-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
 }

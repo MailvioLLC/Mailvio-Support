@@ -1,0 +1,525 @@
+//
+// Mailvio site chrome — header, hero/search and footer matching mailvio.com
+//
+
+body {
+  background-color: var(--pmf-bg);
+  font-feature-settings:
+    'rlig' 1,
+    'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+.h1,
+.h2,
+.h3 {
+  letter-spacing: -0.02em;
+}
+
+.mv-text-gradient {
+  background: var(--mv-gradient-primary);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+//
+// Wordmark — "mail" + green "vio", as on mailvio.com
+//
+.mv-logo {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+
+  .mv-logo-mail {
+    color: #111827;
+  }
+
+  .mv-logo-vio {
+    color: var(--mv-primary);
+  }
+
+  &--footer {
+    display: inline-block;
+    margin-bottom: 1.5rem;
+    font-size: 1.875rem;
+
+    .mv-logo-mail {
+      color: #fff;
+    }
+  }
+}
+
+//
+// Top navigation — white 95%, blurred, hairline bottom border
+//
+.mv-nav {
+  background-color: rgb(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e5e7eb;
+
+  .navbar {
+    --bs-navbar-padding-y: 0;
+  }
+}
+
+.mv-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-right: 1.5rem;
+}
+
+.mv-brand-divider {
+  width: 1px;
+  height: 1.5rem;
+  background-color: #e5e7eb;
+}
+
+.mv-brand-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #71717a;
+}
+
+.mv-nav-link {
+  color: #111827;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--pmf-transition);
+
+  &:hover,
+  &:focus-visible,
+  &.active {
+    color: var(--pmf-link);
+    text-decoration: none;
+  }
+}
+
+.navbar .mv-nav-link.nav-link {
+  padding: 0.5rem 0.75rem;
+  color: #111827;
+
+  &:hover,
+  &:focus-visible,
+  &.active {
+    color: var(--pmf-link);
+  }
+
+  &.active {
+    font-weight: 600;
+  }
+}
+
+.mv-nav-link,
+.mv-cta,
+.mv-brand {
+  white-space: nowrap;
+}
+
+.mv-nav-plain {
+  padding: 0.5rem;
+}
+
+// Between lg and xl the bar gets tight: drop the secondary bits.
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .mv-brand-label,
+  .mv-brand-divider,
+  .mv-nav-plain {
+    display: none;
+  }
+
+  .mv-cta.btn {
+    padding: 0.65rem 1.25rem;
+  }
+}
+
+.mv-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mv-account-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--pmf-radius-sm);
+  color: #111827;
+  font-weight: 500;
+
+  .bi {
+    font-size: 1.35rem;
+  }
+
+  &:hover,
+  &:focus-visible,
+  &.show {
+    background-color: rgb(244, 244, 245, 0.7);
+    color: var(--pmf-link);
+  }
+}
+
+.mv-cta.btn {
+  padding: 0.75rem 2rem;
+  border-radius: 0.375rem;
+  box-shadow: var(--mv-shadow-luxury);
+}
+
+.mv-nav-toggler {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  color: #111827;
+  font-size: 1.75rem;
+
+  &:focus {
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .mv-nav .navbar-collapse {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .mv-nav-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+
+    .mv-cta {
+      text-align: center;
+    }
+  }
+
+  .mv-brand-label {
+    display: none;
+  }
+
+  .mv-brand-divider {
+    display: none;
+  }
+}
+
+//
+// Hero — dark band over the mailvio.com envelope background, green glow
+//
+.mv-hero {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--mv-dark);
+  color: #fff;
+}
+
+.mv-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.mv-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(0, 0, 0, 0.8), rgb(0, 0, 0, 0.7), rgb(0, 0, 0, 0.6));
+}
+
+.mv-hero-inner {
+  position: relative;
+  max-width: 48rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.mv-hero--compact {
+  padding: 2.5rem 0 2.25rem;
+}
+
+.mv-hero--home {
+  padding: 5.5rem 0 5rem;
+
+  .mv-hero-bg {
+    background-position: center 30%;
+  }
+}
+
+.mv-hero-title {
+  margin-bottom: 1.25rem;
+  color: #fff;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  animation: mv-fade-in 0.6s ease-out;
+
+  .mv-text-gradient {
+    display: block;
+    padding-bottom: 0.15em;
+  }
+}
+
+.mv-hero-subtitle {
+  max-width: 40rem;
+  margin: 0 auto 2.25rem;
+  color: #e5e7eb;
+  font-size: clamp(1.1rem, 2vw, 1.3rem);
+  line-height: 1.6;
+}
+
+.mv-hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  color: rgb(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--mv-primary);
+    text-decoration: none;
+  }
+}
+
+.mv-hero-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem 3.5rem;
+  margin-top: 2.75rem;
+
+  .mv-stat-value {
+    color: var(--mv-primary);
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .mv-stat-label {
+    color: #d1d5db;
+    font-size: 0.95rem;
+  }
+}
+
+@keyframes mv-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Search box inside the hero — white field, green glow, pill button
+.search.mv-search {
+  box-shadow: var(--mv-shadow-glow);
+  border-radius: var(--pmf-radius-lg);
+
+  input {
+    height: 64px;
+    padding-right: 9.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--pmf-radius-lg);
+    background-color: #fff;
+    color: var(--mv-dark);
+    font-size: 1.1rem;
+
+    &:focus {
+      border: 2px solid var(--mv-primary);
+      background-color: #fff;
+      color: var(--mv-dark);
+    }
+
+    &::placeholder {
+      color: #71717a;
+    }
+  }
+
+  .bi-search {
+    top: 20px;
+    left: 20px;
+    color: #71717a;
+    font-size: 1.1rem;
+  }
+
+  button {
+    top: 7px;
+    right: 7px;
+    height: 50px;
+    padding: 0 1.75rem;
+    border-radius: 0.5rem;
+    font-weight: 700;
+  }
+
+  .pmf-search-hint {
+    top: 21px;
+    right: 150px;
+  }
+}
+
+//
+// Main content area
+//
+.mv-main {
+  padding: 3rem 0 4rem;
+  min-height: 40vh;
+
+  &--search {
+    padding-top: 3.5rem;
+  }
+}
+
+//
+// Footer — near-black, four link columns, hairline divider
+//
+.mv-footer {
+  padding: 4rem 0 2.5rem;
+  background-color: var(--mv-dark);
+  color: #fff;
+
+  a {
+    color: #d1d5db;
+    text-decoration: none;
+    transition: color var(--pmf-transition);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--mv-primary);
+      text-decoration: none;
+    }
+  }
+}
+
+.mv-footer-main {
+  margin-bottom: 3rem;
+}
+
+.mv-footer-text {
+  max-width: 28rem;
+  margin-bottom: 1.5rem;
+  color: #d1d5db;
+  line-height: 1.65;
+}
+
+.mv-footer-support {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mv-footer-heading {
+  margin-bottom: 1rem;
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.mv-footer-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li + li {
+    margin-top: 0.5rem;
+  }
+}
+
+.mv-footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #374151;
+  color: #9ca3af;
+  font-size: 0.875rem;
+
+  a {
+    color: #9ca3af;
+  }
+}
+
+.mv-footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+
+//
+// Content components — mailvio.com card language (rounded-xl, soft shadow)
+//
+.card {
+  border-radius: var(--pmf-radius-xl);
+  box-shadow: var(--pmf-shadow-sm);
+}
+
+.mv-section-title {
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 700;
+}
+
+.mv-section-subtitle {
+  margin-bottom: 2rem;
+  color: var(--pmf-text-muted);
+  font-size: 1.1rem;
+}
+
+.pmf-breadcrumbs {
+  background-color: transparent;
+}
+
+.badge.bg-info,
+.badge.text-bg-info {
+  background-color: var(--pmf-accent-subtle) !important;
+  color: var(--pmf-link) !important;
+}
+
+.pagination {
+  --bs-pagination-color: var(--pmf-link);
+  --bs-pagination-hover-color: var(--pmf-link-hover);
+  --bs-pagination-active-color: var(--pmf-text-on-accent);
+  --bs-pagination-active-bg: var(--pmf-accent);
+  --bs-pagination-active-border-color: var(--pmf-accent);
+}
+
+.nav-pills {
+  --bs-nav-pills-link-active-color: var(--pmf-text-on-accent);
+  --bs-nav-pills-link-active-bg: var(--pmf-accent);
+}
+
+// The Ctrl+K hint crowds the field on phones.
+@media (max-width: 575.98px) {
+  .search.mv-search .pmf-search-hint {
+    display: none;
+  }
+
+  .search.mv-search input {
+    padding-right: 7.5rem;
+  }
+}

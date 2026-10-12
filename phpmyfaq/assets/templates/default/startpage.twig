@@ -1,13 +1,16 @@
 {% extends 'index.twig' %}
 
-{% block content %}
+{% block heroModifier %}mv-hero--home{% endblock %}
 
-<!-- Header -->
-<div class="row">
-  <div class="col-12">
-    <h1 class="mb-3 fw-bold text-center pmf-start-page">{{ pageHeader | raw }}</h1>
-  </div>
-</div>
+{% block heroHeading %}
+  <span class="mv-eyebrow">{{ pageHeader | raw }}</span>
+  <h1 class="mv-hero-title">How can we <span class="mv-text-gradient">help you?</span></h1>
+  <p class="mv-hero-subtitle">
+    Guides, answers and best practices for getting the most out of Mailvio and landing in the inbox.
+  </p>
+{% endblock %}
+
+{% block content %}
 
 <!-- Start page -->
 {% if startPageCategories %}
@@ -32,12 +35,16 @@
 {% endif %}
 
 <!-- Start page content -->
+<div class="text-center mb-4 pt-2">
+  <h2 class="mv-section-title">Popular in the <span class="mv-text-gradient">Knowledge Center</span></h2>
+  <p class="mv-section-subtitle">{{ writeNumberOfArticles }}</p>
+</div>
 <div class="row masonry-grid">
   <!-- Sticky FAQs -->
   <div class="col-sm-6 col-lg-4 mb-4">
-    <div class="card shadow">
+    <div class="card mv-info-card">
       <div class="card-body">
-        <h5 class="card-title text-center mb-4">
+        <h5 class="card-title mv-card-title">
           <i class="bi bi-exclamation-square"></i>
           {{ stickyRecordsHeader }}
         </h5>
@@ -59,9 +66,9 @@
 
   <!-- Top FAQs -->
   <div class="col-sm-6 col-lg-4 mb-4">
-    <div class="card shadow">
+    <div class="card mv-info-card">
       <div class="card-body">
-        <h5 class="card-title text-center mb-4">
+        <h5 class="card-title mv-card-title">
           <i class="bi bi-trophy"></i>
           {{ writeTopTenHeader }}
         </h5>
@@ -87,9 +94,6 @@
           <li>{{ errorMsgTopTen }}</li>
           {% endif %}
         </ol>
-        <p class="card-text">
-          <small class="text-muted">{{ writeNumberOfArticles }}</small>
-        </p>
       </div>
     </div>
   </div>
@@ -97,9 +101,9 @@
   <!-- Latest FAQs -->
   {% if latestRecordsList is not empty %}
   <div class="col-sm-6 col-lg-4 mb-4">
-    <div class="card shadow">
+    <div class="card mv-info-card">
       <div class="card-body">
-        <h5 class="card-title text-center mb-4">
+        <h5 class="card-title mv-card-title">
           <i class="bi bi-lightning"></i>
           {{ writeNewestHeader }}
         </h5>
@@ -129,9 +133,9 @@
   <!-- Trending FAQs -->
   {% if trendingRecordsList is not empty %}
   <div class="col-sm-6 col-lg-4 mb-4">
-    <div class="card shadow">
+    <div class="card mv-info-card">
       <div class="card-body">
-        <h5 class="card-title text-center mb-4">
+        <h5 class="card-title mv-card-title">
           <i class="bi bi-graph-up-arrow"></i>
           {{ msgTrendingFAQs }}
         </h5>
@@ -165,9 +169,9 @@
   <!-- News -->
   {% if newsList is not empty %}
   <div class="col-sm-6 col-lg-4 mb-4">
-    <div class="card shadow">
+    <div class="card mv-info-card">
       <div class="card-body">
-        <h5 class="card-title text-center mb-4">
+        <h5 class="card-title mv-card-title">
           <i class="bi bi-newspaper"></i>
           {{ msgNewsHeader }}
         </h5>
@@ -200,16 +204,16 @@
   <!-- Tag Cloud -->
   {% if tagsList is not empty %}
   <div class="col-sm-6 col-lg-4 mb-4">
-    <div class="card shadow">
+    <div class="card mv-info-card">
       <div class="card-body">
-        <h5 class="card-title text-center mb-4">
+        <h5 class="card-title mv-card-title">
           <i class="bi bi-tags"></i>
           {{ msgTags }}
         </h5>
         <p class="card-text pmf-tag-cloud">
           {% for tagId, tagFrequency in tagsList %}
-            <a class="btn btn-outline-primary m-1" href="./search.html?tagging_id={{ tagId }}">
-              {{ tagId | tagName }} <span class="badge bg-info">{{ tagFrequency }}</span>
+            <a class="mv-chip" href="./search.html?tagging_id={{ tagId }}">
+              {{ tagId | tagName }} <span class="mv-chip-count">{{ tagFrequency }}</span>
             </a>
           {% endfor %}
         </p>

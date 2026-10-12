@@ -20,10 +20,10 @@ body {
 // Links
 //
 a {
-  color: var(--pmf-accent);
+  color: var(--pmf-link);
 
   &:hover {
-    color: var(--pmf-accent);
+    color: var(--pmf-link-hover);
   }
 }
 
@@ -94,29 +94,39 @@ a {
 .btn {
   border-radius: var(--pmf-radius-sm);
   font-weight: 600;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    background-color var(--pmf-transition),
+    color var(--pmf-transition);
 
   &:active {
     transform: translateY(1px);
   }
 }
 
+// mailvio.com CTA: green gradient, dark text, soft green glow, lift on hover.
 .btn-primary {
-  background-color: var(--pmf-accent);
+  background: var(--mv-gradient-primary);
   border-color: var(--pmf-accent);
   color: var(--pmf-text-on-accent);
 
   &:hover,
   &:focus,
   &:active {
-    background-color: var(--pmf-accent);
+    background: var(--mv-gradient-primary);
     border-color: var(--pmf-accent);
     color: var(--pmf-text-on-accent);
-    filter: brightness(1.08);
+    box-shadow: var(--mv-shadow-luxury);
+  }
+
+  &:hover {
+    transform: scale(1.03);
   }
 }
 
 .btn-outline-primary {
-  color: var(--pmf-accent);
+  color: var(--pmf-link);
   border-color: var(--pmf-accent);
 
   &:hover,

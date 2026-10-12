@@ -11,7 +11,8 @@
   <meta content="{{ metaDescription }}" name="description">
   <meta content="{{ metaPublisher }}" name="author">
   <meta content="width=device-width, initial-scale=1" name="viewport">
-  <meta content="phpMyFAQ {{ phpmyfaqVersion }}" name="application-name">
+  <meta content="{{ header }}" name="application-name">
+  <meta content="#b4d567" name="theme-color">
   <meta content="{{ metaRobots }}" name="robots">
   <meta content="7 days" name="revisit-after">
 
@@ -29,7 +30,10 @@
   <link href="{{ baseHref }}{{ stylesheet }}" rel="stylesheet" media="screen">
     {% endfor %}
   {% endif %}
-  <link href="{{ baseHref }}assets/images/favicon.ico" rel="shortcut icon">
+  <link href="{{ baseHref }}assets/images/mailvio/favicon.ico" rel="icon" type="image/x-icon">
+  <link href="{{ baseHref }}assets/images/mailvio/favicon-32x32.png" rel="icon" type="image/png" sizes="32x32">
+  <link href="{{ baseHref }}assets/images/mailvio/favicon-16x16.png" rel="icon" type="image/png" sizes="16x16">
+  <link href="{{ baseHref }}assets/images/mailvio/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
   <link href="{{ currentPageUrl }}" rel="canonical">
 
   {% if richSnippetsEnabled %}
@@ -39,31 +43,33 @@
 </head>
 <body class="pmf-page-wrapper pmf-template-{{ tplSetName }}" dir="{{ dir }}">
 
-<nav class="navbar navbar-expand-lg navbar-dark p-1 text-bg-pmf-nav border-bottom sticky-top">
-  <div class="container">
-    <a class="navbar-brand" href="{{ faqHome }}" id="phpmyfaq-logo" title="{{ header }}">
-      <img width="130" height="40" src="{{ baseHref }}assets/images/logo-transparent.svg" alt="{{ title }}"
-           title="{{ title }}">
-    </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pmf-top-navbar"
-            aria-controls="pmf-top-navbar" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+<header class="mv-nav sticky-top">
+  <nav class="navbar navbar-expand-lg py-3" aria-label="Main">
+    <div class="container-xxl px-4">
+      <a class="navbar-brand mv-brand" href="{{ faqHome }}" title="{{ header }}">
+        <span class="mv-logo"><span class="mv-logo-mail">mail</span><span class="mv-logo-vio">vio</span></span>
+        <span class="mv-brand-divider" aria-hidden="true"></span>
+        <span class="mv-brand-label">Knowledge Center</span>
+      </a>
+      <button class="navbar-toggler mv-nav-toggler" type="button" data-bs-toggle="collapse"
+              data-bs-target="#pmf-top-navbar" aria-controls="pmf-top-navbar" aria-expanded="false"
+              aria-label="Toggle navigation">
+        <i class="bi bi-list" aria-hidden="true"></i>
+      </button>
 
-    <div class="collapse navbar-collapse" id="pmf-top-navbar">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        {% if not isMaintenanceMode %}
-          {% for item in topNavigation %}
-            <li class="nav-item pmf-nav-link ">
-              <a class="pmf-nav-link {{ item['active'] }}" href="{{ item['link'] }}">{{ item['name'] }}</a>
-            </li>
-          {% endfor %}
-        {% endif %}
-      </ul>
+      <div class="collapse navbar-collapse" id="pmf-top-navbar">
+        <ul class="navbar-nav mx-lg-auto mb-3 mb-lg-0 gap-lg-2">
+          {% if not isMaintenanceMode %}
+            {% for item in topNavigation %}
+              <li class="nav-item">
+                <a class="nav-link mv-nav-link {{ item['active'] }}" href="{{ item['link'] }}">{{ item['name'] }}</a>
+              </li>
+            {% endfor %}
+          {% endif %}
+        </ul>
 
-      <ul class="navbar-nav flex-row flex-wrap ms-md-auto">
-        {% if allowUserLayoutMode %}
-        <li class="nav-item me-2">
+        <div class="mv-nav-actions">
+          {% if allowUserLayoutMode %}
           <div class="btn-group pmf-theme-switcher border" role="group" aria-label="{{ 'msgToggleTheme' | translate }}">
             <button type="button" class="btn btn-link nav-link py-2 px-2" id="theme-light"
                     aria-label="Light mode" title="Light mode">
@@ -78,52 +84,60 @@
               <i class="bi bi-circle-half"></i>
             </button>
           </div>
-        </li>
-        {% endif %}
-        <li class="nav-item dropdown">
-          <button type="button" class="btn btn-link nav-link py-2 px-0 px-lg-2 dropdown-toggle"
-                  data-bs-toggle="dropdown" aria-expanded="false" data-bs-display="static">
-            {{ msgLoginUser }}
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            {% if not isUserLoggedIn %}
-              {% if isUserRegistrationEnabled %}
-                <li><a class="dropdown-item" href="./user/register">{{ 'msgRegisterUser' | translate }}</a></li>
+          {% endif %}
+          <div class="dropdown">
+            <button type="button" class="btn mv-account-toggle dropdown-toggle" data-bs-toggle="dropdown"
+                    aria-expanded="false" data-bs-display="static" title="{{ msgLoginUser }}"
+                    aria-label="{{ msgLoginUser }}">
+              <i class="bi bi-person-circle" aria-hidden="true"></i>
+              <span class="d-lg-none ms-1" aria-hidden="true">{{ msgLoginUser }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% if not isUserLoggedIn %}
+                {% if isUserRegistrationEnabled %}
+                  <li><a class="dropdown-item" href="./user/register">{{ 'msgRegisterUser' | translate }}</a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="./login">{{ msgLoginUser }}</a></li>
+              {% else %}
+                <li><a class="dropdown-item" href="./user/ucp">{{ msgUserControlDropDown }}</a></li>
+                <li><a class="dropdown-item" href="./user/bookmarks">{{ msgBookmarks }}</a></li>
+                <li>
+                  <a class="dropdown-item d-flex align-items-center" href="./user/chat">
+                    {{ 'msgChat' | translate }}
+                    {% if unreadChatCount is defined and unreadChatCount > 0 %}
+                      <span class="badge bg-danger ms-auto">{{ unreadChatCount }}</span>
+                    {% endif %}
+                  </a>
+                </li>
+                <li><a class="dropdown-item" href="./user/request-removal">{{ msgUserRemoval }}</a></li>
+                <li><hr class="dropdown-divider"></li>
+                {% if isUserHasAdminRights %}
+                  <li><a class="dropdown-item" href="./admin">{{ msgAdmin }}</a></li>
+                {% endif %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="./logout?csrf={{ csrfLogout }}">{{ msgLogoutUser }}</a></li>
               {% endif %}
-              <li><a class="dropdown-item" href="./login">{{ msgLoginUser }}</a></li>
-            {% else %}
-              <li><a class="dropdown-item" href="./user/ucp">{{ msgUserControlDropDown }}</a></li>
-              <li><a class="dropdown-item" href="./user/bookmarks">{{ msgBookmarks }}</a></li>
-              <li>
-                <a class="dropdown-item d-flex align-items-center" href="./user/chat">
-                  {{ 'msgChat' | translate }}
-                  {% if unreadChatCount is defined and unreadChatCount > 0 %}
-                    <span class="badge bg-danger ms-auto">{{ unreadChatCount }}</span>
-                  {% endif %}
-                </a>
-              </li>
-              <li><a class="dropdown-item" href="./user/request-removal">{{ msgUserRemoval }}</a></li>
-              <li><hr class="dropdown-divider"></li>
-              {% if isUserHasAdminRights %}
-                <li><a class="dropdown-item" href="./admin">{{ msgAdmin }}</a></li>
-              {% endif %}
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="./logout?csrf={{ csrfLogout }}">{{ msgLogoutUser }}</a></li>
-            {% endif %}
-          </ul>
-        </li>
-      </ul>
+            </ul>
+          </div>
+          <a class="mv-nav-link mv-nav-plain" href="https://mailvio.com">mailvio.com</a>
+          <a class="btn btn-primary mv-cta" href="https://app.mailvio.com/login">Log in to Mailvio</a>
+        </div>
+      </div>
     </div>
-  </div>
-</nav>
+  </nav>
+</header>
 
-<!-- SEARCH -->
+<!-- HERO + SEARCH -->
 {% set isSearchPage = (currentPageUrl matches '/\\/search\\.html([?#]|$)/') or (currentPageUrl matches '/[?&]action=search(&|$)/') %}
 {% if not isMaintenanceMode and not isSearchPage %}
-<div class="container my-5">
-  <div class="row height d-flex justify-content-center align-items-center">
-    <div class="col-md-8">
-      <div class="search">
+<section class="mv-hero {% block heroModifier %}mv-hero--compact{% endblock %}">
+  <div class="mv-hero-bg" style="background-image: url('{{ baseHref }}assets/images/mailvio/hero-background.jpg')"
+       aria-hidden="true"></div>
+  <div class="mv-hero-overlay" aria-hidden="true"></div>
+  <div class="container-xxl px-4 position-relative">
+    <div class="mv-hero-inner">
+      {% block heroHeading %}{% endblock %}
+      <div class="search mv-search">
         <form action="./search.html" id="search" method="get" role="search">
           <i class="bi bi-search"></i>
           <input autocomplete="off" type="text" class="form-control form-control-lg" id="pmf-search-autocomplete"
@@ -132,18 +146,15 @@
           <button type="submit" class="btn btn-primary btn-lg">{{ searchBox }}</button>
         </form>
       </div>
-      <div>
-        <small class="form-text text-muted">
-          <a class="help" href="./search.html">{{ msgAdvancedSearch }}</a>
-        </small>
-      </div>
+      <a class="mv-hero-link" href="./search.html">{{ msgAdvancedSearch }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      {% block heroFooter %}{% endblock %}
     </div>
   </div>
-</div>
+</section>
 {% endif %}
 
 <!-- MAIN CONTENT -->
-<section class="my-3{%  if isSearchPage %} mt-5{% endif %}" id="wrapper">
+<section class="mv-main{% if isSearchPage %} mv-main--search{% endif %}" id="wrapper">
   <div class="container">
   {% if not isMaintenanceMode %}
     {% block content %}{% endblock %}
@@ -153,84 +164,86 @@
   </div>
 </section>
 
-<footer class="footer text-bg-pmf-footer pt-5 pb-4 pb-lg-5">
-  <div class="container pt-lg-4">
-    <div class="row pb-2">
-      <div class="col-lg-4 col-md-6">
-        {% if not isMaintenanceMode %}
-        <label class="form-label" for="language">{{ languageBox }}</label>
-        <form accept-charset="utf-8" action="./" method="post" id="pmf-footer-language-switcher">
-          <div class="form-group d-flex">
-            {{ switchLanguages | raw }}
-            <input name="action" type="hidden" value="">
-          </div>
-        </form>
-        {% endif %}
+<footer class="mv-footer">
+  <div class="container-xxl px-4">
+    <div class="row g-5 mv-footer-main">
+      <div class="col-lg-4">
+        <a class="mv-logo mv-logo--footer" href="https://mailvio.com">
+          <span class="mv-logo-mail">mail</span><span class="mv-logo-vio">vio</span>
+        </a>
+        <p class="mv-footer-text">
+          The email deliverability platform that turns email marketing into predictable revenue growth.
+          Find answers, guides and best practices in our Knowledge Center.
+        </p>
+        <a class="mv-footer-support" href="./contact.html">
+          <i class="bi bi-chat-dots" aria-hidden="true"></i> Contact Support
+        </a>
       </div>
-      <div class="col-xl-6 col-lg-7 col-md-5 offset-xl-2 offset-md-1 pt-4 pt-md-1 pt-lg-0">
-        <div id="footer-links" class="row">
-          <div class="col-lg-4">
-            <ul class="nav flex-column pb-lg-1 mb-lg-3">
-              {% if not isMaintenanceMode %}
-                {% for item in footerNavigation %}
-                  <li class="nav-item">
-                    <a href="{{ item['link'] }}" class="nav-link d-inline-block px-0 pt-1 pb-2 {{ item['active'] }}">
-                      {{ item['name'] }}
-                    </a>
-                  </li>
-                {% endfor %}
-                {% if isImprintLinkEnabled %}
-                  <li class="nav-item">
-                    <a class="nav-link d-inline-block px-0 pt-1 pb-2" target="_blank" href="./imprint.html">
-                      {{ msgImprint }}
-                    </a>
-                  </li>
-                {% endif %}
-              {% endif %}
-            </ul>
-          </div>
-          <div class="col-lg-4">
-            <ul class="nav flex-column pb-lg-1 mb-lg-3">
-              {% if not isMaintenanceMode %}
-                {% if isPrivacyLinkEnabled %}
-                  <li class="nav-item">
-                    <a class="nav-link d-inline-block px-0 pt-1 pb-2" target="_blank" href="./privacy.html">
-                      {{ msgPrivacyNote }}
-                    </a>
-                  </li>
-                {% endif %}
-                {% if isTermsLinkEnabled %}
-                  <li class="nav-item">
-                    <a class="nav-link d-inline-block px-0 pt-1 pb-2" target="_blank" href="./terms.html">
-                      {{ msgTermsOfService }}
-                    </a>
-                  </li>
-                {% endif %}
-                {% if isCookieConsentEnabled %}
-                  <li class="nav-item">
-                    <a id="showCookieConsent" class="nav-link d-inline-block px-0 pt-1 pb-2" href="#">
-                      {{ cookiePreferences }}
-                    </a>
-                  </li>
-                {% endif %}
-                {% if isAccessibilityStatementEnabled %}
-                  <li class="nav-item">
-                    <a class="nav-link d-inline-block px-0 pt-1 pb-2" target="_blank" href="./accessibility.html">
-                      {{ msgAccessibilityStatement }}
-                    </a>
-                  </li>
-                {% endif %}
-              {% endif %}
-            </ul>
-          </div>
-        </div>
+
+      <div class="col-6 col-md-3 col-lg-2">
+        <h4 class="mv-footer-heading">Help Center</h4>
+        <ul class="mv-footer-links">
+          {% if not isMaintenanceMode %}
+            {% for item in footerNavigation %}
+              <li><a href="{{ item['link'] }}" class="{{ item['active'] }}">{{ item['name'] }}</a></li>
+            {% endfor %}
+            {% if isImprintLinkEnabled %}
+              <li><a target="_blank" href="./imprint.html">{{ msgImprint }}</a></li>
+            {% endif %}
+            {% if isAccessibilityStatementEnabled %}
+              <li><a target="_blank" href="./accessibility.html">{{ msgAccessibilityStatement }}</a></li>
+            {% endif %}
+            {% if isCookieConsentEnabled %}
+              <li><a id="showCookieConsent" href="#">{{ cookiePreferences }}</a></li>
+            {% endif %}
+          {% endif %}
+        </ul>
+      </div>
+
+      <div class="col-6 col-md-3 col-lg-2">
+        <h4 class="mv-footer-heading">Product</h4>
+        <ul class="mv-footer-links">
+          <li><a href="https://mailvio.com/done-for-you-warm-up">DFY Warm-up</a></li>
+          <li><a href="https://mailvio.com/ai-email-writer">AI Email Writing</a></li>
+          <li><a href="https://mailvio.com/transparency">100% Transparency</a></li>
+          <li><a href="https://mailvio.com/lead-loss-prevention-system">Lead Loss Prevention</a></li>
+          <li><a href="https://mailvio.com/3-wave-sending">Automatic 3-Wave Sending</a></li>
+          <li><a href="https://mailvio.com/in-house-deliverability-team">Your Inbox Placement Expert Team</a></li>
+        </ul>
+      </div>
+
+      <div class="col-6 col-md-3 col-lg-2">
+        <h4 class="mv-footer-heading">Resources</h4>
+        <ul class="mv-footer-links">
+          <li><a href="https://mailvio.com/blog">Blog</a></li>
+          <li><a href="https://mailvio.com/email-deliverability-course">Free Email Deliverability Course</a></li>
+          <li><a href="https://mailvio.com/email-marketing-skills">Test your Email Marketing Skills (Quiz)</a></li>
+          <li><a href="https://mailvio.com/feature-freakz">Feature Freakz</a></li>
+          <li><a href="https://mailvio.com/academy">Mailvio Academy</a></li>
+        </ul>
+      </div>
+
+      <div class="col-6 col-md-3 col-lg-2">
+        <h4 class="mv-footer-heading">Company</h4>
+        <ul class="mv-footer-links">
+          <li><a href="https://mailvio.com/about-us">About us</a></li>
+          <li><a href="https://mailvio.com/partner-program">Partner Program</a></li>
+          <li><a href="https://mailvio.com/careers">Careers</a></li>
+          <li><a href="https://mail.mailvio.com/apidocs" target="_blank" rel="noopener noreferrer">API</a></li>
+        </ul>
       </div>
     </div>
-    <p class="nav d-block text-center text-md-start pb-2 pb-lg-0 mb-0">
-      <span class="text-light opacity-75">© {{ currentYear }} All rights reserved. Powered with ❤️ and ☕️ by </span>
-      <a class="nav-link d-inline-block p-0" href="https://www.phpmyfaq.de/" target="_blank" rel="noopener">phpMyFAQ</a>
-      <span class="text-light opacity-75">{{ version }}</span>
-    </p>
+
+    <div class="mv-footer-bottom">
+      <div>© {{ currentYear }} Mailvio. All rights reserved. | Built for email marketers, by email marketers.</div>
+      <div class="mv-footer-legal">
+        <a href="https://mailvio.com/privacy">Privacy Policy</a>
+        <a href="https://mailvio.com/tos">Terms of Service</a>
+        <a href="https://mailvio.com/disclaimer">Disclaimer</a>
+        <a href="https://mailvio.com/anti-spam">Anti-spam Policy</a>
+        <span><i class="bi bi-globe2" aria-hidden="true"></i> Global Email Delivery</span>
+      </div>
+    </div>
   </div>
 </footer>
 

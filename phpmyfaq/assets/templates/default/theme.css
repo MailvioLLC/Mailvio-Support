@@ -32,40 +32,52 @@
 
 :root,
 [data-bs-theme='light'] {
-  --bs-light: #eceff9;
-  --bs-dark: #060508;
-  --bs-primary: #083c83;
-  --bs-secondary: #1d646a;
-  --bs-info: #40b0ae;
-  --bs-success: #0aa05c;
-  --bs-warning: #e1ca0a;
-  --bs-danger: #f01704;
-  --bs-pmf-nav: #2f3035;
-  --bs-pmf-footer: #142f48;
-  --bs-pmf-background: #9eb6c9;
+  /* Mailvio brand (mailvio.com) */
+  --bs-light: #f4f4f5;
+  --bs-dark: #09090b;
+  --bs-primary: #b4d567;
+  --bs-primary-rgb: 180, 213, 103;
+  --bs-secondary: #52525b;
+  --bs-info: #0ea5e9;
+  --bs-success: #65a30d;
+  --bs-warning: #f59e0b;
+  --bs-danger: #ef4444;
+  --bs-pmf-nav: #ffffff;
+  --bs-pmf-footer: #09090b;
+  --bs-pmf-background: #fafafa;
 
   /* Bootstrap body variables for light mode */
-  --bs-body-bg: #ffffff;
-  --bs-body-color: #212529;
+  --bs-body-bg: #fafafa;
+  --bs-body-color: #09090b;
+  --bs-border-color: #e4e4e7;
+  --bs-link-color: #4d7c0f;
+  --bs-link-color-rgb: 77, 124, 15;
+  --bs-link-hover-color: #3f6212;
+  --bs-link-hover-color-rgb: 63, 98, 18;
 }
 
 [data-bs-theme='dark'] {
-  --bs-light: #eceff9;
-  --bs-dark: #060508;
-  --bs-primary: #083c83;
-  --bs-secondary: #1d646a;
-  --bs-info: #40b0ae;
-  --bs-success: #0aa05c;
-  --bs-warning: #e1ca0a;
-  --bs-danger: #f01704;
-  --bs-pmf-nav: #1d212a;
-  --bs-pmf-footer: #1d212a;
-  --bs-pmf-background: #14171d;
+  --bs-light: #fafafa;
+  --bs-dark: #09090b;
+  --bs-primary: #b4d567;
+  --bs-primary-rgb: 180, 213, 103;
+  --bs-secondary: #a1a1aa;
+  --bs-info: #38bdf8;
+  --bs-success: #84cc16;
+  --bs-warning: #fbbf24;
+  --bs-danger: #f87171;
+  --bs-pmf-nav: #09090b;
+  --bs-pmf-footer: #09090b;
+  --bs-pmf-background: #09090b;
 
-  /* Bootstrap body variables for dark mode — softened from near-black */
-  --bs-body-bg: #14171d;
-  --bs-body-color: var(--bs-light);
-  --bs-border-color: #2e3440;
+  /* Bootstrap body variables for dark mode */
+  --bs-body-bg: #09090b;
+  --bs-body-color: #fafafa;
+  --bs-border-color: #27272a;
+  --bs-link-color: #b4d567;
+  --bs-link-color-rgb: 180, 213, 103;
+  --bs-link-hover-color: #c8e08f;
+  --bs-link-hover-color-rgb: 200, 224, 143;
 }
 
 [data-bs-theme='high-contrast'] {
