@@ -170,6 +170,27 @@ final class AuthenticationControllerTest extends TestCase
     /**
      * @throws \Exception
      */
+    public function testLoginRendersARememberMeCheckboxTheAuthenticateActionAccepts(): void
+    {
+        $controller = $this->createController();
+        $controller->setContainer($this->createControllerContainer(
+            currentUser: $this->createLoggedOutCurrentUser(),
+            configurationValues: [],
+        ));
+
+        $content = (string) $controller->login(new Request())->getContent();
+
+        self::assertMatchesRegularExpression('/<input[^>]*name="faqrememberme"[^>]*>/', $content);
+        preg_match('/<input[^>]*name="faqrememberme"[^>]*>/', $content, $checkbox);
+        preg_match('/value="([^"]*)"/', $checkbox[0], $value);
+
+        // authenticate() reads the checkbox with FILTER_VALIDATE_BOOLEAN; a browser sends "on" without a value
+        self::assertTrue(filter_var($value[1] ?? 'on', FILTER_VALIDATE_BOOLEAN));
+    }
+
+    /**
+     * @throws \Exception
+     */
     public function testLoginRendersKeycloakSignInButtonWhenEnabled(): void
     {
         $request = new Request();

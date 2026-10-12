@@ -9,6 +9,7 @@ use phpMyFAQ\Database\Sqlite3;
 use phpMyFAQ\Strings;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\Request;
 
 #[AllowMockObjectsWithoutExpectations]
 class CurrentUserTest extends TestCase
@@ -545,5 +546,32 @@ class CurrentUserTest extends TestCase
                 'UPDATE %sfaquser SET remember_me = NULL, remember_me_expires = NULL WHERE user_id = 1',
                 Database::getTablePrefix(),
             ));
+    }
+
+    public function testIssueRememberMeCookieExpiresAfterTheRememberMeLifetime(): void
+    {
+        $issuedCookies = [];
+        $request = new Request(server: ['REQUEST_TIME' => 1_700_000_000, 'SCRIPT_NAME' => '/admin/index.php']);
+        $userSession = new UserSession(
+            $this->configuration,
+            $request,
+            cookieSetter: static function (string $name, string $value, array $options) use (&$issuedCookies): void {
+                $issuedCookies[$name] = $options;
+            },
+        );
+        $currentUser = (new \ReflectionClass(CurrentUser::class))->newInstanceWithoutConstructor();
+        $configuration = $this->configuration;
+        // CurrentUser builds its UserSession internally; inject one that records cookies instead
+        (function () use ($configuration, $userSession): void {
+            $this->configuration = $configuration;
+            $this->userSession = $userSession;
+        })->call($currentUser);
+
+        $currentUser->issueRememberMeCookie();
+
+        $this->assertSame(
+            1_700_000_000 + 1_209_600,
+            $issuedCookies[UserSession::COOKIE_NAME_REMEMBER_ME]['expires'],
+        );
     }
 }

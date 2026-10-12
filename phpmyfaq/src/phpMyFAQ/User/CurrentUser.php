@@ -583,7 +583,7 @@ class CurrentUser extends User
         $this->userSession->setCookie(
             UserSession::COOKIE_NAME_REMEMBER_ME,
             $rememberMeToken,
-            time() + self::PMF_REMEMBER_ME_EXPIRED_TIME,
+            self::PMF_REMEMBER_ME_EXPIRED_TIME,
         );
     }
 
