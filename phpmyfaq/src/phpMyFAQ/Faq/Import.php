@@ -55,7 +55,8 @@ readonly class Import
 
         $categoryId = Filter::filterVar($record[0], FILTER_VALIDATE_INT);
         $question = Filter::filterVar($record[1], FILTER_SANITIZE_SPECIAL_CHARS, '');
-        $answer = Filter::filterVar($record[2], FILTER_SANITIZE_SPECIAL_CHARS, '');
+        // Answers are HTML: sanitize them like the FAQ editor does instead of entity-encoding the markup
+        $answer = Filter::removeAttributes(is_string($record[2]) ? $record[2] : '');
         $keywords = Filter::filterVar($record[3], FILTER_SANITIZE_SPECIAL_CHARS, '');
         $languageCode = Filter::filterVar($record[4], FILTER_SANITIZE_SPECIAL_CHARS, '');
         $author = Filter::filterVar($record[5], FILTER_SANITIZE_SPECIAL_CHARS, '');

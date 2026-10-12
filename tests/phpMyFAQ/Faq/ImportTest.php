@@ -764,6 +764,48 @@ class ImportTest extends TestCase
         $this->assertTrue($result);
     }
 
+    public function testImportKeepsHtmlFormattingInAnswer(): void
+    {
+        $answer = '<h2>Setup</h2><p>Use <strong>bold</strong> and <a href="https://mailvio.com/">links</a>.</p>'
+        . '<ul><li>One</li><li>Two</li></ul>';
+
+        $this->assertTrue($this->faqImport->import($this->recordWithAnswer($answer)));
+
+        $this->assertSame($answer, $this->fetchLastImportedAnswer());
+    }
+
+    public function testImportRemovesUnsafeHtmlFromAnswer(): void
+    {
+        $answer = '<p onclick="alert(1)">Hello</p><script>alert("xss")</script><img src="x" onerror="alert(1)">';
+
+        $this->assertTrue($this->faqImport->import($this->recordWithAnswer($answer)));
+
+        $storedAnswer = $this->fetchLastImportedAnswer();
+        $this->assertStringContainsString('<p>Hello</p>', $storedAnswer);
+        $this->assertStringNotContainsString('<script', $storedAnswer);
+        $this->assertStringNotContainsString('onclick', $storedAnswer);
+        $this->assertStringNotContainsString('onerror', $storedAnswer);
+    }
+
+    /**
+     * @return array<int, int|string>
+     */
+    private function recordWithAnswer(string $answer): array
+    {
+        return [1, 'How is HTML imported?', $answer, 'html', 'en', 'Test Author', 'test@example.com', 'true', 'false'];
+    }
+
+    private function fetchLastImportedAnswer(): string
+    {
+        $result = $this->dbHandle->query(sprintf(
+            'SELECT content FROM %sfaqdata ORDER BY id DESC LIMIT 1',
+            Database::getTablePrefix(),
+        ));
+        $row = $this->dbHandle->fetchObject($result);
+
+        return (string) $row->content;
+    }
+
     private function initializeDatabaseStatics(Sqlite3 $dbHandle): void
     {
         $databaseReflection = new ReflectionClass(Database::class);
