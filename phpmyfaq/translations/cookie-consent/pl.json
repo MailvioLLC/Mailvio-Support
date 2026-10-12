@@ -1,7 +1,7 @@
 {
   "consentModal": {
-    "title": "phpMyFAQ używaj plików cookie!",
-    "description": "Hi, phpMyFAQ wykorzystuje niezbędne pliki cookie, aby zapewnić jego prawidłowe działanie oraz śledzące pliki cookie, aby zrozumieć, w jaki sposób z nim współdziałasz. Te ostatnie zostaną ustalone dopiero po uzyskaniu zgody. <button type=\"button\" data-cc=\"c-settings\" class=\"cc-link\">Pozwól mi wybrać</button>",
+    "title": "Mailvio Support używa plików cookie!",
+    "description": "Cześć, Mailvio Support wykorzystuje niezbędne pliki cookie, aby zapewnić jego prawidłowe działanie oraz śledzące pliki cookie, aby zrozumieć, w jaki sposób z nim współdziałasz. Te ostatnie zostaną ustalone dopiero po uzyskaniu zgody. <button type=\"button\" data-cc=\"c-settings\" class=\"cc-link\">Pozwól mi wybrać</button>",
     "acceptAllBtn": "Akceptuj wszystkie",
     "acceptNecessaryBtn": "Odrzuć wszystko",
     "showPreferencesBtn": "Pozwól mi wybrać",

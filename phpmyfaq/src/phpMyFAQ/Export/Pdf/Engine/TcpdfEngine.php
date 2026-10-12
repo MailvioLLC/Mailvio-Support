@@ -254,7 +254,7 @@ final readonly class TcpdfEngine implements PdfEngineInterface
         self::defineIfMissing('PDF_PAGE_ORIENTATION', 'P');
         self::defineIfMissing('PDF_CREATOR', 'TCPDF');
         self::defineIfMissing('PDF_AUTHOR', 'TCPDF');
-        self::defineIfMissing('PDF_HEADER_TITLE', 'phpMyFAQ');
+        self::defineIfMissing('PDF_HEADER_TITLE', 'Mailvio Support');
         self::defineIfMissing('PDF_HEADER_STRING', 'Mailvio Knowledge Center - support.mailvio.com');
         self::defineIfMissing('PDF_HEADER_LOGO', 'tcpdf_logo.jpg');
         self::defineIfMissing('PDF_HEADER_LOGO_WIDTH', 30);
