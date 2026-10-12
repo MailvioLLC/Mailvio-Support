@@ -85,9 +85,9 @@ class CurrentUser extends User
     private readonly SessionWrapper $sessionWrapper;
 
     /**
-     * Specifies the timeout for the session-ID in minutes. If the session ID
-     * was not updated for the last $this->sessionIdTimeout minutes, it will
-     * be updated. If set to 0, the session ID will be updated on every click.
+     * Specifies the timeout for the session age in minutes. If the session age
+     * was not renewed for the last $this->sessionIdTimeout minutes, it will
+     * be renewed. If set to 0, the session age will be renewed on every click.
      * The session ID timeout must not be greater than Session timeout.
      */
     private int $sessionIdTimeout = 1;
@@ -467,6 +467,34 @@ class CurrentUser extends User
 
         $res = $this->configuration->getDb()->query($update);
         if (!$res) {
+            $this->errors[] = $this->configuration->getDb()->error();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Renews the age of the current session without rotating its session-ID.
+     *
+     * A page load fires several requests at once. Rotating the ID in each of them leaves the
+     * browser and the user table with different IDs, which logs the user out. The ID is
+     * rotated on login instead, see updateSessionId().
+     */
+    public function renewSessionTimestamp(): bool
+    {
+        $requestTime = (int) Request::createFromGlobals()->server->get('REQUEST_TIME');
+        $this->sessionWrapper->set(self::SESSION_ID_TIMESTAMP, $requestTime);
+
+        $update = sprintf(
+            'UPDATE %sfaquser SET session_timestamp = %d WHERE user_id = %d',
+            Database::getTablePrefix(),
+            $requestTime,
+            $this->getUserId(),
+        );
+
+        if (!$this->configuration->getDb()->query($update)) {
             $this->errors[] = $this->configuration->getDb()->error();
 
             return false;

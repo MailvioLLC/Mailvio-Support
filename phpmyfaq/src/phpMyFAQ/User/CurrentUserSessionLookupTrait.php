@@ -34,10 +34,12 @@ trait CurrentUserSessionLookupTrait
      */
     public static function getCurrentUser(Configuration $configuration): CurrentUser
     {
-        $user = self::getFromCookie($configuration);
+        // A valid session comes first: a cookie login rotates the session-ID, and doing that on
+        // every request breaks the parallel requests of a page load.
+        $user = self::getFromSession($configuration);
 
         if (!$user instanceof CurrentUser) {
-            $user = self::getFromSession($configuration);
+            $user = self::getFromCookie($configuration);
         }
 
         if (!$user instanceof CurrentUser) {
@@ -124,9 +126,9 @@ trait CurrentUserSessionLookupTrait
             return null;
         }
 
-        // session-id needs to be updated
+        // session age needs to be renewed
         if ($user->sessionIdIsTimedOut()) {
-            $user->updateSessionId();
+            $user->renewSessionTimestamp();
         }
 
         // user is now logged in

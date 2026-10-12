@@ -266,6 +266,47 @@ class CurrentUserTraitsTest extends TestCase
 
     /**
      * @throws Exception
+     * @throws \Exception
+     */
+    public function testGetFromSessionRenewsAnAgedSessionWithoutRotatingItsId(): void
+    {
+        $currentUser = new CurrentUser($this->configuration);
+        $currentUser->login('admin', 'password');
+        $sessionId = session_id();
+
+        // the next click arrives two minutes later, past the session-ID timeout
+        $_SERVER['REQUEST_TIME'] += 120;
+
+        $result = CurrentUser::getFromSession($this->configuration);
+
+        $this->assertInstanceOf(CurrentUser::class, $result);
+        $this->assertSame($sessionId, session_id());
+        $this->assertSame($sessionId, $result->getSessionInfo()['session_id']);
+        $this->assertSame($_SERVER['REQUEST_TIME'], (int) $result->getSessionInfo()['session_timestamp']);
+        $this->assertSame(0.0, $result->sessionAge());
+    }
+
+    /**
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function testGetCurrentUserPrefersAValidSessionOverTheRememberMeCookie(): void
+    {
+        $currentUser = new CurrentUser($this->configuration);
+        $currentUser->login('admin', 'password');
+        $currentUser->setRememberMe(hash('sha256', 'cookie-token'));
+        $sessionId = session_id();
+
+        $_COOKIE[UserSession::COOKIE_NAME_REMEMBER_ME] = 'cookie-token';
+
+        $result = CurrentUser::getCurrentUser($this->configuration);
+
+        $this->assertTrue($result->isLoggedIn());
+        $this->assertSame($sessionId, session_id());
+    }
+
+    /**
+     * @throws Exception
      */
     public function testIsBlockedReturnsTrueForBlockedUser(): void
     {
