@@ -11,19 +11,14 @@ class SystemTest extends TestCase
 {
     public function testGetPoweredByPlainString(): void
     {
-        $this->assertEquals(
-            sprintf('powered with ❤️ and ☕️ by phpMyFAQ %s', System::getVersion()),
-            System::getPoweredByPlainString(),
-        );
+        $this->assertEquals('Mailvio Knowledge Center', System::getPoweredByPlainString());
     }
 
     public function testGetPoweredByString(): void
     {
         $this->assertEquals(
-            sprintf(
-                'powered with ❤️ and ☕️ by <a class="link-light text-decoration-none" target="_blank" href="https://www.phpmyfaq.de/">phpMyFAQ</a> %s',
-                System::getVersion(),
-            ),
+            '<a class="link-light text-decoration-none" target="_blank" href="https://mailvio.com/">'
+            . 'Mailvio Knowledge Center</a>',
             System::getPoweredByString(),
         );
     }

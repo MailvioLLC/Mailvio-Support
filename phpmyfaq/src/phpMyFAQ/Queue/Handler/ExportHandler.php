@@ -138,7 +138,7 @@ final readonly class ExportHandler
 
                 $mail ??= new Mail($this->configuration);
                 $mail->addTo($email);
-                $mail->subject = 'Your phpMyFAQ export is ready';
+                $mail->subject = 'Your Mailvio Knowledge Center export is ready';
                 $mail->message = sprintf(
                     'Your %s export has been generated and is available for download: %s',
                     strtoupper($message->format),

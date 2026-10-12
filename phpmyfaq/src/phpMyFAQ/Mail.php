@@ -217,7 +217,7 @@ class Mail
         $this->configuration = $configuration;
 
         // Set phpMyFAQ related data
-        $this->mailer = 'phpMyFAQ/' . $this->configuration->getVersion();
+        $this->mailer = 'Mailvio Knowledge Center';
         try {
             $this->setFrom($this->configuration->getAdminEmail(), $this->configuration->getTitle());
         } catch (Exception $exception) {

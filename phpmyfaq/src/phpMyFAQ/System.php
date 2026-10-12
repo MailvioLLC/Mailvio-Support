@@ -279,15 +279,15 @@ class System
 
     public static function getPoweredByString(): string
     {
-        return 'powered with ❤️ and ☕️ by <a class="link-light text-decoration-none" target="_blank" href="'
-        . self::PHPMYFAQ_URL
-        . '">phpMyFAQ</a> '
-        . self::getVersion();
+        return (
+            '<a class="link-light text-decoration-none" target="_blank" href="https://mailvio.com/">'
+            . 'Mailvio Knowledge Center</a>'
+        );
     }
 
     public static function getPoweredByPlainString(): string
     {
-        return 'powered with ❤️ and ☕️ by phpMyFAQ ' . self::getVersion();
+        return 'Mailvio Knowledge Center';
     }
 
     /**
