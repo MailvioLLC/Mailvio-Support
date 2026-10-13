@@ -35,11 +35,12 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         $this->overrideConfigurationValues(['main.administrationMail' => 'support@example.com']);
     }
 
-    public function testSendsTheTicketToTheSupportInboxWithTheVisitorAsReplyTo(): void
+    public function testSendsTheTicketToTheSupportInboxWithTheVisitorAsReplyToAndInCopy(): void
     {
         $mailer = $this->createMock(Mail::class);
         $mailer->expects($this->once())->method('setReplyTo')->with('jane@example.com', 'Jane Doe');
         $mailer->expects($this->once())->method('addTo')->with('support@example.com');
+        $mailer->expects($this->once())->method('addCc')->with('jane@example.com', 'Jane Doe');
         $mailer->expects($this->once())->method('send')->with(true);
 
         $response = $this->send($this->createController($mailer), self::VALID_TICKET);

@@ -34,7 +34,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Unlike a public question, a support ticket is never stored or published: it is mailed to the
- * administration address right away, with the visitor as reply-to address.
+ * administration address right away, with the visitor as reply-to address and in copy.
  */
 final class SupportTicketController extends AbstractController
 {
@@ -99,6 +99,8 @@ final class SupportTicketController extends AbstractController
         try {
             $this->mailer->setReplyTo($email, $name);
             $this->mailer->addTo($this->configuration->getAdminEmail());
+            // The mail is sent from the support address, so replying to all also reaches the visitor
+            $this->mailer->addCc($email, $name);
             $this->mailer->subject = $subject;
             $this->mailer->message = $this->renderMessage($name, $email, $subject, $message);
             // Delivered right away, so the visitor learns about a failure instead of losing the ticket
