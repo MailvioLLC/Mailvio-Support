@@ -1924,5 +1924,6 @@ $PMF_LANG['msgSupportTicketSubmit'] = 'Send to support';
 $PMF_LANG['msgSupportTicketSent'] = 'Thank you! Your message has been sent to our support team. We will reply to your email address.';
 $PMF_LANG['msgSupportTicketSendFailed'] = 'We couldn\'t send your message. Please email us at %s instead while we work on fixing this.';
 $PMF_LANG['msgSupportTicketMissingFields'] = 'Please fill in all fields with a valid email address.';
+$PMF_LANG['msgLogInToComment'] = 'Log in to comment on this FAQ';
 
 return $PMF_LANG;

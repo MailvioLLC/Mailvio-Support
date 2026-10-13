@@ -23,11 +23,11 @@ use phpMyFAQ\Bookmark;
 use phpMyFAQ\Captcha\CaptchaInterface;
 use phpMyFAQ\Captcha\Helper\CaptchaHelperInterface;
 use phpMyFAQ\Category;
+use phpMyFAQ\Comment\CommentAvailability;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Date;
 use phpMyFAQ\Entity\Comment;
 use phpMyFAQ\Entity\SeoEntity;
-use phpMyFAQ\Enums\FaqStatus;
 use phpMyFAQ\Enums\PermissionType;
 use phpMyFAQ\Enums\SeoType;
 use phpMyFAQ\Faq;
@@ -403,19 +403,24 @@ final class FaqController extends AbstractFrontController
         // Comment permissions
         $expired = $faqDisplayService->isExpired();
 
-        $commentMessage = sprintf(
-            '%s<a href="#" data-bs-toggle="modal" data-bs-target="#pmf-modal-add-comment">%s</a>',
-            Translation::getString(key: 'msgYouCan'),
-            Translation::getString(key: 'msgWriteComment'),
-        );
-        if (
-            -1 === $this->currentUser->getUserId() && !$this->configuration->get('records.allowCommentsForGuests')
-            || $faq->faqRecord['status'] !== FaqStatus::Published->value
-            || 'n' === $faq->faqRecord['comment']
-            || $expired
-        ) {
-            $commentMessage = Translation::get(key: 'msgWriteNoComment');
-        }
+        $commentMessage = match (CommentAvailability::forFaq(
+            status: (string) $faq->faqRecord['status'],
+            commentFlag: (string) $faq->faqRecord['comment'],
+            isExpired: $expired,
+            visitorIsGuest: -1 === $this->currentUser->getUserId(),
+            guestsMayComment: true === $this->configuration->get('records.allowCommentsForGuests'),
+        )) {
+            CommentAvailability::Open => sprintf(
+                '%s<a href="#" data-bs-toggle="modal" data-bs-target="#pmf-modal-add-comment">%s</a>',
+                Translation::getString(key: 'msgYouCan'),
+                Translation::getString(key: 'msgWriteComment'),
+            ),
+            CommentAvailability::LogInRequired => sprintf(
+                '<a href="./login">%s</a>',
+                Translation::getString(key: 'msgLogInToComment'),
+            ),
+            CommentAvailability::Closed => Translation::get(key: 'msgWriteNoComment'),
+        };
 
         // Services for social sharing
         $faqServices = new Services($this->configuration);
