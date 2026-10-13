@@ -138,7 +138,7 @@ final class FaqController extends AbstractAdministrationController
             'revision_id' => 0,
             'author' => $this->currentUser->getUserData('display_name'),
             'email' => $this->currentUser->getUserData('email'),
-            'comment' => $this->configuration->get(item: 'records.defaultAllowComments') ? 'checked' : null,
+            'comment' => $this->configuration->get(item: 'records.defaultAllowComments') ? 'y' : 'n',
         ];
 
         $this->addExtension(new AttributeExtension(IsoDateTwigExtension::class));
@@ -209,7 +209,7 @@ final class FaqController extends AbstractAdministrationController
             'revision_id' => 0,
             'author' => $this->currentUser->getUserData('display_name'),
             'email' => $this->currentUser->getUserData('email'),
-            'comment' => $this->configuration->get(item: 'records.defaultAllowComments') ? 'checked' : null,
+            'comment' => $this->configuration->get(item: 'records.defaultAllowComments') ? 'y' : 'n',
         ];
 
         $this->addExtension(new AttributeExtension(IsoDateTwigExtension::class));
@@ -563,7 +563,7 @@ final class FaqController extends AbstractAdministrationController
             'revision_id' => 0,
             'author' => $this->currentUser->getUserData('display_name'),
             'email' => $this->currentUser->getUserData('email'),
-            'comment' => $this->configuration->get(item: 'records.defaultAllowComments') ? 'checked' : null,
+            'comment' => $this->configuration->get(item: 'records.defaultAllowComments') ? 'y' : 'n',
         ];
 
         $categories = [

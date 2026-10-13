@@ -29,6 +29,7 @@ use phpMyFAQ\Translation;
 use phpMyFAQ\User\CurrentUser;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesNamespace;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -184,9 +185,11 @@ final class FaqControllerTest extends TestCase
     public function testIndexRequiresFaqEditRight(): void
     {
         $controller = $this->createController();
-        $controller->setContainer($this->createAuthenticatedContainer(
-            grantedRights: [PermissionType::FAQ_ADD, PermissionType::FAQ_PUBLISH, PermissionType::FAQ_DELETE],
-        ));
+        $controller->setContainer($this->createAuthenticatedContainer(grantedRights: [
+            PermissionType::FAQ_ADD,
+            PermissionType::FAQ_PUBLISH,
+            PermissionType::FAQ_DELETE,
+        ]));
 
         $this->expectException(ForbiddenException::class);
         $controller->index(new Request());
@@ -412,6 +415,70 @@ final class FaqControllerTest extends TestCase
     }
 
     /**
+     * @return array<string, array{string, bool}>
+     */
+    public static function commentFlags(): array
+    {
+        return [
+            'comments allowed' => ['y', true],
+            'comments not allowed' => ['n', false],
+        ];
+    }
+
+    /**
+     * The flag is stored as 'y' or 'n'; both are non-empty, so the checkbox must compare the value.
+     *
+     * @throws \Exception
+     */
+    #[DataProvider('commentFlags')]
+    public function testEditTicksAllowCommentsOnlyWhenTheFaqAllowsComments(string $flag, bool $ticked): void
+    {
+        $faq = $this->createMock(Faq::class);
+        $faq->faqRecord = [
+            'id' => 1,
+            'lang' => 'en',
+            'title' => 'Prepared FAQ',
+            'revision_id' => 0,
+            'status' => 'published',
+            'author' => 'Test Author',
+            'email' => 'test@example.com',
+            'comment' => $flag,
+        ];
+
+        $faqPermission = $this->createMock(FaqPermission::class);
+        $faqPermission->method('get')->willReturn([]);
+
+        $seo = $this->createMock(Seo::class);
+        $seo->method('get')->willReturn(new SeoEntity());
+
+        $controller = new FaqController(
+            $this->createStub(Comments::class),
+            $faq,
+            $this->createStub(Tags::class),
+            $seo,
+            $this->createStub(CategoryHelper::class),
+            $this->createStub(UserHelper::class),
+            $faqPermission,
+            $this->createStub(Changelog::class),
+            $this->createStub(Question::class),
+        );
+        $controller->setContainer($this->createAuthenticatedContainer());
+
+        $content = (string) $controller
+            ->edit(new Request([], [], ['faqId' => '1', 'faqLanguage' => 'en']))
+            ->getContent();
+
+        $checkbox = '/name="comment" id="comment" value="y" class="form-check-input"\s+checked>/';
+        if ($ticked) {
+            self::assertMatchesRegularExpression($checkbox, $content);
+            return;
+        }
+
+        self::assertDoesNotMatchRegularExpression($checkbox, $content);
+        self::assertStringContainsString('name="comment" id="comment"', $content);
+    }
+
+    /**
      * @throws \Exception
      */
     public function testEditReturnsForbiddenForRestrictedLanguage(): void
@@ -513,15 +580,13 @@ final class FaqControllerTest extends TestCase
         $permission = $this->createMock(PermissionInterface::class);
         $permission
             ->method('hasPermission')
-            ->willReturnCallback(
-                static function (int $userId, mixed $right) use ($deniedRight, $grantedValues): bool {
-                    if ($grantedValues !== null) {
-                        return in_array($right, $grantedValues, true);
-                    }
+            ->willReturnCallback(static function (int $userId, mixed $right) use ($deniedRight, $grantedValues): bool {
+                if ($grantedValues !== null) {
+                    return in_array($right, $grantedValues, true);
+                }
 
-                    return $deniedRight === null || ($right !== $deniedRight && $right !== $deniedRight->value);
-                },
-            );
+                return $deniedRight === null || $right !== $deniedRight && $right !== $deniedRight->value;
+            });
         $permission
             ->method('hasPermissionForCategory')
             ->willReturnCallback(
