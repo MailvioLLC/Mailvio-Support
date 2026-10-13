@@ -31,18 +31,27 @@ describe('createQuestion function', (): void => {
     });
   });
 
-  test('throws an error if network response is not ok', async () => {
-    // Mocking fetch function
+  test('returns the error message of a rejected question', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
-      json: () => Promise.resolve({ error: 'Something went wrong' }),
+      json: () => Promise.resolve({ error: 'Please enter the captcha code' }),
     });
 
-    // Test data
     const data = Object.keys({ comment: 'Test comment' }) as unknown as FormData;
 
-    // Assertions
-    await expect(createQuestion(data)).rejects.toThrow('HTTP 400');
+    await expect(createQuestion(data)).resolves.toEqual({ error: 'Please enter the captcha code' });
+  });
+
+  test('throws an error if a failed response carries no error message', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+    });
+
+    const data = Object.keys({ comment: 'Test comment' }) as unknown as FormData;
+
+    await expect(createQuestion(data)).rejects.toThrow('HTTP 500');
   });
 });

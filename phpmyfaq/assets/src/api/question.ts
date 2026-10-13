@@ -16,6 +16,10 @@
 import { serialize } from '../utils';
 import { ApiResponse } from '../interfaces';
 
+/**
+ * A rejected question (e.g. a failed captcha) comes back with an error message for the visitor, so
+ * the body of a failed response is returned as well; only a response without such a message is thrown.
+ */
 export const createQuestion = async (data: FormData): Promise<ApiResponse> => {
   const response: Response = await fetch('api/question/create', {
     method: 'POST',
@@ -28,9 +32,11 @@ export const createQuestion = async (data: FormData): Promise<ApiResponse> => {
     referrerPolicy: 'no-referrer',
   });
 
-  if (!response.ok) {
+  const result: ApiResponse | null = await response.json().catch(() => null);
+
+  if (!response.ok && !result?.error) {
     throw new Error(`HTTP ${response.status}`);
   }
 
-  return await response.json();
+  return result ?? {};
 };
