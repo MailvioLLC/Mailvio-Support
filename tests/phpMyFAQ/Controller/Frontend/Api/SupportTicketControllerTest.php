@@ -49,7 +49,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
             'Thank you! Your message has been sent to our support team. We will reply to your email address.',
             $this->payload($response)['success'],
         );
-        self::assertSame('[Open a support ticket] Campaign stuck in sending', $mailer->subject);
+        self::assertSame('Campaign stuck in sending', $mailer->subject);
         self::assertStringContainsString('Mailvio account email: jane@example.com', $mailer->message);
         self::assertStringContainsString(
             "My campaign has been sending for two days.<br />\nCan you check it?",
@@ -83,7 +83,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
             'subject' => "Hello\r\nBcc: victim@example.com",
         ]);
 
-        self::assertSame('[Open a support ticket] Hello Bcc: victim@example.com', $mailer->subject);
+        self::assertSame('Hello Bcc: victim@example.com', $mailer->subject);
     }
 
     /**

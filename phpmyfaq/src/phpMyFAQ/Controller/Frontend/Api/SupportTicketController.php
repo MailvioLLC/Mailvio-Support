@@ -99,11 +99,7 @@ final class SupportTicketController extends AbstractController
         try {
             $this->mailer->setReplyTo($email, $name);
             $this->mailer->addTo($this->configuration->getAdminEmail());
-            $this->mailer->subject = sprintf(
-                '[%s] %s',
-                Translation::getString(key: 'msgAskTabSupportTicket'),
-                $subject,
-            );
+            $this->mailer->subject = $subject;
             $this->mailer->message = $this->renderMessage($name, $email, $subject, $message);
             // Delivered right away, so the visitor learns about a failure instead of losing the ticket
             $this->mailer->send(forceSynchronousDelivery: true);
