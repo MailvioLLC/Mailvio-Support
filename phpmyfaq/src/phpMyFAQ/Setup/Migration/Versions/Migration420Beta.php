@@ -19,8 +19,10 @@ declare(strict_types=1);
 
 namespace phpMyFAQ\Setup\Migration\Versions;
 
+use phpMyFAQ\Setup\Installation\DatabaseSchema;
 use phpMyFAQ\Setup\Migration\AbstractMigration;
 use phpMyFAQ\Setup\Migration\Operations\OperationRecorder;
+use phpMyFAQ\Setup\Migration\QueryBuilder\DialectFactory;
 
 readonly class Migration420Beta extends AbstractMigration
 {
@@ -37,14 +39,14 @@ readonly class Migration420Beta extends AbstractMigration
     public function getDescription(): string
     {
         return (
-            'Add server-side expiry for remember-me tokens, bind Microsoft Entra ID logins to the '
-            . 'immutable object identifier, record the last accepted TOTP time slice, and add the '
-            . 'upgrade.allowUnverifiedNightly configuration'
+            'Add server-side expiry for remember-me tokens, store one remember-me token per browser, '
+            . 'bind Microsoft Entra ID logins to the immutable object identifier, record the last '
+            . 'accepted TOTP time slice, and add the upgrade.allowUnverifiedNightly configuration'
         );
     }
 
     /**
-     * Every step is guarded by a column check so the migration stays safe to re-run.
+     * Every step is guarded by a column or table check so the migration stays safe to re-run.
      */
     public function up(OperationRecorder $recorder): void
     {
@@ -74,8 +76,49 @@ readonly class Migration420Beta extends AbstractMigration
             );
         }
 
+        if (!$this->tableExists('faquser_remember_tokens')) {
+            $rememberTokens = new DatabaseSchema(DialectFactory::create())->faquserRememberTokens();
+            $recorder->addSql($rememberTokens->build(), 'Create faquser_remember_tokens table');
+            foreach ($rememberTokens->buildIndexStatements() as $indexStatement) {
+                $recorder->addSql($indexStatement, 'Create user_id index on faquser_remember_tokens');
+            }
+
+            // Keep the browser that is remembered today logged in
+            $recorder->addSql(
+                sprintf(
+                    'INSERT INTO %s (token_hash, user_id, expires) SELECT remember_me, user_id, remember_me_expires '
+                    . 'FROM %s WHERE remember_me IS NOT NULL AND remember_me_expires IS NOT NULL',
+                    $this->table('faquser_remember_tokens'),
+                    $this->table('faquser'),
+                ),
+                'Move remember-me tokens to faquser_remember_tokens',
+            );
+        }
+
         // Nightly update packages without a published digest are refused unless opted in
         $recorder->addConfig('upgrade.allowUnverifiedNightly', 'false');
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $tableName = $this->table($table);
+
+        $query = match (true) {
+            $this->isMySql() => sprintf("SHOW TABLES LIKE '%s'", $tableName),
+            $this->isPostgreSql() => sprintf(
+                "SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = '%s'",
+                $tableName,
+            ),
+            $this->isSqlite() => sprintf(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '%s'",
+                $tableName,
+            ),
+            default => sprintf("SELECT name FROM sysobjects WHERE name = '%s' AND xtype = 'U'", $tableName),
+        };
+
+        $result = $this->configuration->getDb()->query($query);
+
+        return $this->configuration->getDb()->numRows($result) > 0;
     }
 
     private function columnExists(string $table, string $column): bool

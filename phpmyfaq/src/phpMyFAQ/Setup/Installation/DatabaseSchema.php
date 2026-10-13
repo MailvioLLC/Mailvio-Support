@@ -93,6 +93,7 @@ class DatabaseSchema
             'faquser_group' => $this->faquserGroup(),
             'faquser_right' => $this->faquserRight(),
             'faquser_right_language' => $this->faquserRightLanguage(),
+            'faquser_remember_tokens' => $this->faquserRememberTokens(),
             'faqvisits' => $this->faqvisits(),
             'faqvoting' => $this->faqvoting(),
             'faqchat_messages' => $this->faqchatMessages(),
@@ -768,6 +769,17 @@ class DatabaseSchema
             ->integer('right_id', false)
             ->varchar('language', 5, false)
             ->primaryKey(['user_id', 'right_id', 'language']);
+    }
+
+    public function faquserRememberTokens(): TableBuilder
+    {
+        return new TableBuilder($this->dialect)
+            ->table('faquser_remember_tokens')
+            ->varchar('token_hash', 64, false)
+            ->integer('user_id', false)
+            ->integer('expires', false)
+            ->primaryKey('token_hash')
+            ->index('idx_remember_tokens_user', 'user_id');
     }
 
     public function faqgroupRightLanguage(): TableBuilder

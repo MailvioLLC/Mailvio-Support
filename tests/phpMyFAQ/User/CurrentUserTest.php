@@ -273,10 +273,10 @@ class CurrentUserTest extends TestCase
 
             $database = $this->configuration->getDb();
             $result = $database->query(sprintf(
-                'SELECT remember_me_expires FROM %sfaquser WHERE user_id = 1',
+                "SELECT expires FROM %sfaquser_remember_tokens WHERE token_hash = 'remember-me-token'",
                 Database::getTablePrefix(),
             ));
-            $expires = (int) ($database->fetchArray($result)['remember_me_expires'] ?? 0);
+            $expires = (int) ($database->fetchArray($result)['expires'] ?? 0);
 
             $this->assertSame((int) $_SERVER['REQUEST_TIME'] + 1_209_600, $expires);
         } finally {
@@ -528,24 +528,21 @@ class CurrentUserTest extends TestCase
     {
         $database = $this->configuration->getDb();
         $result = $database->query(sprintf(
-            'SELECT remember_me FROM %sfaquser WHERE user_id = 1',
+            'SELECT token_hash FROM %sfaquser_remember_tokens WHERE user_id = 1',
             Database::getTablePrefix(),
         ));
 
-        return (string) ($database->fetchArray($result)['remember_me'] ?? '');
+        return (string) ($database->fetchArray($result)['token_hash'] ?? '');
     }
 
     /**
-     * Clears any remember-me token left on the shared fixture row.
+     * Clears any remember-me token left for the shared fixture user.
      */
     private function resetRememberMeToken(): void
     {
         $this->configuration
             ->getDb()
-            ->query(sprintf(
-                'UPDATE %sfaquser SET remember_me = NULL, remember_me_expires = NULL WHERE user_id = 1',
-                Database::getTablePrefix(),
-            ));
+            ->query(sprintf('DELETE FROM %sfaquser_remember_tokens WHERE user_id = 1', Database::getTablePrefix()));
     }
 
     public function testIssueRememberMeCookieExpiresAfterTheRememberMeLifetime(): void

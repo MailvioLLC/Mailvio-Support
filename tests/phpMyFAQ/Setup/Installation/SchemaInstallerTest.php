@@ -50,7 +50,7 @@ class SchemaInstallerTest extends TestCase
                 $createTableCount++;
             }
         }
-        $this->assertEquals(56, $createTableCount, 'Should generate CREATE TABLE for all 56 tables');
+        $this->assertEquals(57, $createTableCount, 'Should generate CREATE TABLE for all 57 tables');
     }
 
     #[DataProvider('dialectProvider')]

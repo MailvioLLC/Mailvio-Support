@@ -63,6 +63,7 @@ class Migration420BetaTest extends TestCase
         $description = $this->migration->getDescription();
 
         $this->assertStringContainsString('remember-me', $description);
+        $this->assertStringContainsString('one remember-me token per browser', $description);
         $this->assertStringContainsString('Entra ID', $description);
         $this->assertStringContainsString('TOTP', $description);
         $this->assertStringContainsString('upgrade.allowUnverifiedNightly', $description);
@@ -73,6 +74,7 @@ class Migration420BetaTest extends TestCase
         $db = $this->configuration->getDb();
         $db->query('CREATE TABLE faquser (user_id INTEGER, remember_me_expires INTEGER)');
         $db->query('CREATE TABLE faquserdata (user_id INTEGER, entra_oid VARCHAR(255), twofactor_last_slice INTEGER)');
+        $db->query('CREATE TABLE faquser_remember_tokens (token_hash VARCHAR(64), user_id INTEGER, expires INTEGER)');
 
         $recorder = new OperationRecorder($this->configuration);
         $this->migration->up($recorder);
@@ -89,6 +91,7 @@ class Migration420BetaTest extends TestCase
         $db = $this->configuration->getDb();
         $db->query('CREATE TABLE faquser (user_id INTEGER, remember_me VARCHAR(150))');
         $db->query('CREATE TABLE faquserdata (user_id INTEGER, keycloak_sub VARCHAR(255), secret VARCHAR(128))');
+        $db->query('CREATE TABLE faquser_remember_tokens (token_hash VARCHAR(64), user_id INTEGER, expires INTEGER)');
 
         $recorder = new OperationRecorder($this->configuration);
         $this->migration->up($recorder);
@@ -111,6 +114,7 @@ class Migration420BetaTest extends TestCase
         $db = $this->configuration->getDb();
         $db->query('CREATE TABLE faquser (user_id INTEGER, remember_me VARCHAR(150), remember_me_expires INTEGER)');
         $db->query('CREATE TABLE faquserdata (user_id INTEGER, entra_oid VARCHAR(255), twofactor_last_slice INTEGER)');
+        $db->query('CREATE TABLE faquser_remember_tokens (token_hash VARCHAR(64), user_id INTEGER, expires INTEGER)');
 
         $recorder = new OperationRecorder($this->configuration);
         $this->migration->up($recorder);
@@ -123,6 +127,7 @@ class Migration420BetaTest extends TestCase
         $db = $this->configuration->getDb();
         $db->query('CREATE TABLE faquser (user_id INTEGER, remember_me_expires INTEGER)');
         $db->query('CREATE TABLE faquserdata (user_id INTEGER, entra_oid VARCHAR(255))');
+        $db->query('CREATE TABLE faquser_remember_tokens (token_hash VARCHAR(64), user_id INTEGER, expires INTEGER)');
 
         $recorder = new OperationRecorder($this->configuration);
         $this->migration->up($recorder);
@@ -156,4 +161,29 @@ class Migration420BetaTest extends TestCase
             'Accounts without an Entra ID link must not collide on the unique index',
         );
     }
+
+    public function testUpCreatesTheRememberTokenTableAndMovesTheRememberedBrowser(): void
+    {
+        $db = $this->configuration->getDb();
+        $db->query('CREATE TABLE faquser (user_id INTEGER, remember_me VARCHAR(150), remember_me_expires INTEGER)');
+        $db->query('CREATE TABLE faquserdata (user_id INTEGER, entra_oid VARCHAR(255), twofactor_last_slice INTEGER)');
+        $db->query("INSERT INTO faquser VALUES (1, 'remembered-hash', 1800000000)");
+        $db->query("INSERT INTO faquser VALUES (2, 'legacy-hash', NULL)");
+        $db->query('INSERT INTO faquser VALUES (3, NULL, NULL)');
+
+        $recorder = new OperationRecorder($this->configuration);
+        $this->migration->up($recorder);
+
+        foreach ($recorder->getSqlQueries() as $query) {
+            $this->assertNotFalse($db->query($query), $query);
+        }
+
+        $rows = $db->fetchAll($db->query('SELECT token_hash, user_id, expires FROM faquser_remember_tokens'));
+        $this->assertEquals([(object) ['token_hash' => 'remembered-hash', 'user_id' => 1, 'expires' => 1800000000]], $rows);
+        $this->assertFalse(
+            $db->query("INSERT INTO faquser_remember_tokens VALUES ('remembered-hash', 2, 1800000000)"),
+            'A token hash must identify exactly one browser',
+        );
+    }
+
 }

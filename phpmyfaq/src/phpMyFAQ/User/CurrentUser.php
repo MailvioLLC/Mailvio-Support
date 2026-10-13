@@ -525,19 +525,13 @@ class CurrentUser extends User
         $this->setLoggedIn(false);
 
         // delete session-ID
-        $update = sprintf(
-            '
+        $update = sprintf('
             UPDATE
                 %sfaquser
             SET
                 session_id = NULL
-                %s
             WHERE
-                user_id = %d',
-            Database::getTablePrefix(),
-            $deleteCookie ? ', remember_me = NULL, remember_me_expires = NULL' : '',
-            $this->getUserId(),
-        );
+                user_id = %d', Database::getTablePrefix(), $this->getUserId());
 
         $res = $this->configuration->getDb()->query($update);
 
@@ -548,6 +542,12 @@ class CurrentUser extends User
         }
 
         if ($deleteCookie) {
+            // revoke only this browser's token, the user's other browsers stay remembered
+            $rememberMeToken = Request::createFromGlobals()->cookies->get(UserSession::COOKIE_NAME_REMEMBER_ME, '');
+            if ($rememberMeToken !== '') {
+                new RememberMeTokenRepository($this->configuration)->remove(hash('sha256', $rememberMeToken));
+            }
+
             $this->userSession->setCookie(UserSession::COOKIE_NAME_REMEMBER_ME, '');
         }
 
@@ -617,21 +617,19 @@ class CurrentUser extends User
 
     /**
      * Saves the remember-me token in the database together with its server-side expiry,
-     * which matches the lifetime of the cookie handed to the browser.
+     * which matches the lifetime of the cookie handed to the browser. Each browser gets its
+     * own token, so remembering one browser does not forget the others.
      */
     public function setRememberMe(string $rememberMe): bool
     {
-        $expires = (int) Request::createFromGlobals()->server->get('REQUEST_TIME') + self::PMF_REMEMBER_ME_EXPIRED_TIME;
+        $requestTime = (int) Request::createFromGlobals()->server->get('REQUEST_TIME');
 
-        $update = sprintf(
-            "UPDATE %sfaquser SET remember_me = '%s', remember_me_expires = %d WHERE user_id = %d",
-            Database::getTablePrefix(),
-            $this->configuration->getDb()->escape($rememberMe),
-            $expires,
+        return new RememberMeTokenRepository($this->configuration)->add(
             $this->getUserId(),
+            $rememberMe,
+            $requestTime + self::PMF_REMEMBER_ME_EXPIRED_TIME,
+            $requestTime,
         );
-
-        return (bool) $this->configuration->getDb()->query($update);
     }
 
     /**

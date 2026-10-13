@@ -148,6 +148,44 @@ class CurrentUserTraitsTest extends TestCase
 
     /**
      * @throws Exception
+     * @throws \Exception
+     */
+    public function testRememberingASecondBrowserKeepsTheFirstOneRemembered(): void
+    {
+        $currentUser = new CurrentUser($this->configuration);
+        $currentUser->login('admin', 'password');
+        $currentUser->setRememberMe(hash('sha256', 'first-browser'));
+        $currentUser->setRememberMe(hash('sha256', 'second-browser'));
+        $currentUser->deleteFromSession();
+
+        foreach (['first-browser', 'second-browser'] as $cookie) {
+            $_COOKIE[UserSession::COOKIE_NAME_REMEMBER_ME] = $cookie;
+            $this->assertSame(1, CurrentUser::getFromCookie($this->configuration)?->getUserId(), $cookie);
+        }
+    }
+
+    /**
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function testLogoutForgetsOnlyTheBrowserThatLogsOut(): void
+    {
+        $currentUser = new CurrentUser($this->configuration);
+        $currentUser->login('admin', 'password');
+        $currentUser->setRememberMe(hash('sha256', 'first-browser'));
+        $currentUser->setRememberMe(hash('sha256', 'second-browser'));
+
+        $_COOKIE[UserSession::COOKIE_NAME_REMEMBER_ME] = 'first-browser';
+        $currentUser->deleteFromSession(deleteCookie: true);
+
+        $this->assertNull(CurrentUser::getFromCookie($this->configuration));
+
+        $_COOKIE[UserSession::COOKIE_NAME_REMEMBER_ME] = 'second-browser';
+        $this->assertSame(1, CurrentUser::getFromCookie($this->configuration)?->getUserId());
+    }
+
+    /**
+     * @throws Exception
      */
     public function testGetFromCookieRejectsAnExpiredToken(): void
     {
@@ -159,7 +197,7 @@ class CurrentUserTraitsTest extends TestCase
         $this->configuration
             ->getDb()
             ->query(sprintf(
-                'UPDATE faquser SET remember_me_expires = %d WHERE user_id = 1',
+                'UPDATE faquser_remember_tokens SET expires = %d WHERE user_id = 1',
                 $_SERVER['REQUEST_TIME'] - 1,
             ));
 

@@ -272,18 +272,22 @@ class UserTest extends TestCase
         $writable->expects($this->once())->method('update')->with('api-user', 'Secret123')->willReturn(true);
         $this->user->addAuth($writable, 'writable');
 
+        $queries = [];
         $this->database
-            ->expects($this->once())
+            ->expects($this->exactly(2))
             ->method('query')
-            ->with($this->logicalAnd(
-                $this->stringContains('remember_me = NULL'),
-                $this->stringContains('remember_me_expires = NULL'),
-                $this->stringContains('session_id = NULL'),
-                $this->stringContains('user_id = 15'),
-            ))
-            ->willReturn(true);
+            ->willReturnCallback(static function (string $query) use (&$queries): bool {
+                $queries[] = $query;
+                return true;
+            });
 
         $this->assertTrue($this->user->changePassword('Secret123'));
+
+        $this->assertStringContainsString('remember_me = NULL', $queries[0]);
+        $this->assertStringContainsString('remember_me_expires = NULL', $queries[0]);
+        $this->assertStringContainsString('session_id = NULL', $queries[0]);
+        $this->assertStringContainsString('user_id = 15', $queries[0]);
+        $this->assertSame('DELETE FROM faquser_remember_tokens WHERE user_id = 15', $queries[1]);
     }
 
     public function testChangePasswordDoesNotRevokeAnythingWhenNoDriverUpdated(): void

@@ -27,6 +27,7 @@ use phpMyFAQ\Enums\PermissionType;
 use phpMyFAQ\Permission\MediumPermission;
 use phpMyFAQ\Permission\PermissionInterface;
 use phpMyFAQ\Tenant\TenantQuotaEnforcer;
+use phpMyFAQ\User\RememberMeTokenRepository;
 use phpMyFAQ\User\UserData;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -258,14 +259,17 @@ class User
         $select = sprintf(
             "
             SELECT
-                user_id,
-                login,
-                account_status,
-                remember_me_expires
+                u.user_id,
+                u.login,
+                u.account_status,
+                t.expires AS remember_me_expires
             FROM
-                %sfaquser
+                %sfaquser u
+            JOIN
+                %sfaquser_remember_tokens t ON t.user_id = u.user_id
             WHERE
-                remember_me = '%s' AND account_status != 'blocked'",
+                t.token_hash = '%s' AND u.account_status != 'blocked'",
+            Database::getTablePrefix(),
             Database::getTablePrefix(),
             // The cookie holds the raw token; only its SHA-256 hash is stored, so hash the
             // incoming value before comparing.
@@ -639,6 +643,8 @@ class User
 
             return false;
         }
+
+        new RememberMeTokenRepository($this->configuration)->removeAllOfUser($this->userId);
 
         $data = $this->userData()->delete($this->getUserId());
         if (!$data) {
@@ -1024,7 +1030,7 @@ class User
     }
 
     /**
-     * Revokes the remember-me token and the stored session of the user, so that every
+     * Revokes the remember-me tokens and the stored session of the user, so that every
      * device that was logged in before has to authenticate again.
      */
     public function revokePersistentLogins(): bool
@@ -1035,7 +1041,10 @@ class User
             $this->userId,
         );
 
-        return (bool) $this->configuration->getDb()->query($update);
+        return (
+            (bool) $this->configuration->getDb()->query($update)
+            && new RememberMeTokenRepository($this->configuration)->removeAllOfUser($this->userId)
+        );
     }
 
     /**
