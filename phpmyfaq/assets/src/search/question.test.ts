@@ -162,6 +162,43 @@ describe('handleQuestion', () => {
     expect(resetSpy).toHaveBeenCalled();
   });
 
+  it('should replace the smart answers and the form with the confirmation once the question is stored', async () => {
+    document.body.innerHTML = `
+      <p class="hint-search-suggestion d-none">Matching questions</p>
+      <div id="pmf-question-response"></div>
+      <p class="hint-search-suggestion d-none">Click submit if none of these helped</p>
+      <form id="pmf-question-form" class="needs-validation">
+        <textarea name="question">How to install?</textarea>
+      </form>
+      <button id="pmf-submit-question">Submit</button>
+      <div id="loader"></div>
+    `;
+
+    vi.mocked(createQuestion)
+      .mockResolvedValueOnce({ result: '<a href="/faq/1">Similar FAQ</a>' })
+      .mockResolvedValueOnce({ success: 'Thank you for your question!' });
+
+    handleQuestion();
+
+    const button = document.getElementById('pmf-submit-question') as HTMLButtonElement;
+    button.click();
+    await vi.waitFor(() => {
+      expect(document.querySelector('.pmf-smart-answers')).not.toBeNull();
+    });
+
+    button.click();
+    await vi.waitFor(() => {
+      expect(document.querySelector('.alert-success')).not.toBeNull();
+    });
+
+    expect(document.querySelector('.pmf-smart-answers')).toBeNull();
+    document.querySelectorAll('.hint-search-suggestion').forEach((hint) => {
+      expect(hint.classList.contains('d-none')).toBe(true);
+    });
+    expect(document.getElementById('pmf-question-form')?.classList.contains('d-none')).toBe(true);
+    expect((document.querySelector('.alert-success') as HTMLElement).innerText).toBe('Thank you for your question!');
+  });
+
   it('should show error message on error response', async () => {
     document.body.innerHTML = `
       <form id="pmf-question-form" class="needs-validation">

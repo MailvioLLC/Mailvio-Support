@@ -34,6 +34,7 @@ export const handleQuestion = () => {
 
         try {
           const response = await createQuestion(formData);
+          const earlierSmartAnswers = document.querySelectorAll('.pmf-smart-answers');
 
           // Smart answers
           if (response.result) {
@@ -46,7 +47,10 @@ export const handleQuestion = () => {
             });
 
             // Add smart answers
-            message.insertAdjacentElement('afterend', addElement('div', { classList: '', innerHTML: resultMessage }));
+            message.insertAdjacentElement(
+              'afterend',
+              addElement('div', { classList: 'pmf-smart-answers', innerHTML: resultMessage })
+            );
             // The next submission confirms storing the question
             form.insertAdjacentElement(
               'afterbegin',
@@ -59,11 +63,20 @@ export const handleQuestion = () => {
             loader.classList.add('d-none');
             const message = document.getElementById('pmf-question-response') as HTMLElement;
 
+            // The question is stored: drop the earlier smart answers and the form, so the
+            // confirmation is what the visitor sees instead of an empty form
+            earlierSmartAnswers.forEach((smartAnswers) => smartAnswers.remove());
+            Array.from(document.getElementsByClassName('hint-search-suggestion')).forEach((hint) => {
+              hint.classList.add('d-none');
+            });
+
             message.insertAdjacentElement(
               'beforeend',
               addElement('div', { classList: 'alert alert-success', innerText: response.success })
             );
             form.reset();
+            form.classList.add('d-none');
+            message.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
           }
 
           if (response.error) {
