@@ -110,10 +110,11 @@ final class SupportTicketController extends AbstractController
         } catch (Exception|TransportExceptionInterface $exception) {
             $this->configuration->getLogger()->error('Sending a support ticket failed: ' . $exception->getMessage());
 
+            // Not 502: Cloudflare replaces the body of a 502 with its own error page
             return $this->json(['error' => sprintf(
                 Translation::getString(key: 'msgSupportTicketSendFailed'),
                 $this->configuration->getAdminEmail(),
-            )], Response::HTTP_BAD_GATEWAY);
+            )], Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         return $this->json(['success' => Translation::get(key: 'msgSupportTicketSent')], Response::HTTP_OK);

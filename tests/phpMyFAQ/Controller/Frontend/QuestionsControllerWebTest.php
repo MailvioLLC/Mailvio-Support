@@ -94,5 +94,9 @@ final class QuestionsControllerWebTest extends ControllerWebTestCase
         self::assertResponseContains('Mailvio account email', $response);
         self::assertResponseContains('How can we help you?', $response);
         self::assertResponseContains('Nothing you send here is published.', $response);
+        self::assertResponseContains(
+            'data-send-failed="We couldn&#039;t send your message. Please email us at',
+            $response,
+        );
     }
 }

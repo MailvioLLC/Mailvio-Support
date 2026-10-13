@@ -163,9 +163,9 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
         $response = $this->send($this->createController($mailer), self::VALID_TICKET);
 
-        self::assertSame(Response::HTTP_BAD_GATEWAY, $response->getStatusCode());
+        self::assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $response->getStatusCode());
         self::assertSame(
-            'Your message could not be sent. Please try again later or email us at support@example.com.',
+            "We couldn't send your message. Please email us at support@example.com instead while we work on fixing this.",
             $this->payload($response)['error'],
         );
     }

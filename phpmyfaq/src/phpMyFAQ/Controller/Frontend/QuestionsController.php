@@ -154,6 +154,10 @@ final class QuestionsController extends AbstractFrontController
             'msgSupportTicketSubject' => Translation::get(key: 'msgSupportTicketSubject'),
             'msgSupportTicketMessage' => Translation::get(key: 'msgSupportTicketMessage'),
             'msgSupportTicketSubmit' => Translation::get(key: 'msgSupportTicketSubmit'),
+            'msgSupportTicketSendFailed' => sprintf(
+                Translation::getString(key: 'msgSupportTicketSendFailed'),
+                $this->configuration->getAdminEmail(),
+            ),
             'csrfTokenSupportTicket' => Token::getInstance($this->session)->getTokenString(SupportTicketController::CSRF_PAGE),
             'supportTicketCaptchaFieldset' => $this->captchaHelper->renderCaptcha(
                 $this->captcha,

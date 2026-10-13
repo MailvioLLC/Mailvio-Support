@@ -84,7 +84,9 @@ export const handleSupportTicket = (): void => {
         message.append(addElement('div', { classList: 'alert alert-danger', innerText: response.error }));
       }
     } catch (error) {
-      message.append(addElement('div', { classList: 'alert alert-danger', innerText: (error as Error).message }));
+      // A failure without a message from our server (network error, proxy error page) is never shown as is
+      const failure = form.dataset.sendFailed || (error as Error).message;
+      message.append(addElement('div', { classList: 'alert alert-danger', innerText: failure }));
     } finally {
       submit.disabled = false;
       resetTurnstile(form);

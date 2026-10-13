@@ -127,7 +127,8 @@
 
       <div id="pmf-support-ticket-response"></div>
 
-      <form id="pmf-support-ticket-form" action="#" method="post" class="needs-validation" novalidate>
+      <form id="pmf-support-ticket-form" action="#" method="post" class="needs-validation" novalidate
+            data-send-failed="{{ msgSupportTicketSendFailed }}">
         <input type="hidden" name="pmf-csrf-token" value="{{ csrfTokenSupportTicket }}">
 
         <div class="row mb-2">

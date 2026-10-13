@@ -32,7 +32,7 @@ const renderPage = (): void => {
       </div>
       <div class="tab-pane" id="support-ticket">
         <div id="pmf-support-ticket-response"></div>
-        <form id="pmf-support-ticket-form" class="needs-validation">
+        <form id="pmf-support-ticket-form" class="needs-validation" data-send-failed="Please email us instead.">
           <input name="name" value="Jane" required>
           <input name="email" value="jane@example.com" required>
           <input name="subject" value="Help" required>
@@ -136,14 +136,16 @@ describe('handleSupportTicket', () => {
     expect(document.getElementById('pmf-support-ticket-form')?.classList.contains('was-validated')).toBe(true);
   });
 
-  it('shows an unexpected failure', async () => {
-    vi.mocked(sendSupportTicket).mockRejectedValue(new Error('HTTP 500'));
+  it('shows the send-failed message instead of a technical error', async () => {
+    vi.mocked(sendSupportTicket).mockRejectedValue(new Error('HTTP 502'));
     handleSupportTicket();
 
     document.getElementById('pmf-submit-support-ticket')?.click();
 
     await vi.waitFor(() => {
-      expect((document.querySelector('.alert-danger') as HTMLElement | null)?.innerText).toBe('HTTP 500');
+      expect((document.querySelector('.alert-danger') as HTMLElement | null)?.innerText).toBe(
+        'Please email us instead.'
+      );
     });
   });
 });
