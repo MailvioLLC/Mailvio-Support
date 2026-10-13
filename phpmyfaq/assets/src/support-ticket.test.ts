@@ -4,14 +4,9 @@ vi.mock('./api', () => ({
   sendSupportTicket: vi.fn(),
 }));
 
-vi.mock('./utils', () => ({
+vi.mock('./utils', async () => ({
   resetTurnstile: vi.fn(),
-  addElement: vi.fn((tag: string, props: Record<string, string>) => {
-    const element = document.createElement(tag);
-    element.className = props.classList ?? '';
-    element.innerText = props.innerText ?? '';
-    return element;
-  }),
+  addElement: (await vi.importActual<typeof import('./utils/helper')>('./utils/helper')).addElement,
 }));
 
 import { handleAskTabs, handleSupportTicket } from './support-ticket';
@@ -32,7 +27,7 @@ const renderPage = (): void => {
       </div>
       <div class="tab-pane" id="support-ticket">
         <div id="pmf-support-ticket-response"></div>
-        <form id="pmf-support-ticket-form" class="needs-validation" data-send-failed="Please email us instead.">
+        <form id="pmf-support-ticket-form" class="needs-validation" data-send-failed="Please email us at support@example.com instead.">
           <input name="name" value="Jane" required>
           <input name="email" value="jane@example.com" required>
           <input name="subject" value="Help" required>
@@ -102,9 +97,9 @@ describe('handleSupportTicket', () => {
     document.getElementById('pmf-submit-support-ticket')?.click();
 
     await vi.waitFor(() => {
-      expect(
-        (document.querySelector('#pmf-support-ticket-response .alert-danger') as HTMLElement | null)?.innerText
-      ).toBe('Please enter the captcha code');
+      expect(document.querySelector('#pmf-support-ticket-response .alert-danger')?.textContent).toBe(
+        'Please enter the captcha code'
+      );
     });
     expect(document.getElementById('pmf-support-ticket-form')?.classList.contains('d-none')).toBe(false);
     expect((document.getElementById('pmf-submit-support-ticket') as HTMLButtonElement).disabled).toBe(false);
@@ -143,9 +138,27 @@ describe('handleSupportTicket', () => {
     document.getElementById('pmf-submit-support-ticket')?.click();
 
     await vi.waitFor(() => {
-      expect((document.querySelector('.alert-danger') as HTMLElement | null)?.innerText).toBe(
-        'Please email us instead.'
+      expect(document.querySelector('.alert-danger')?.textContent).toBe(
+        'Please email us at support@example.com instead.'
       );
     });
+  });
+
+  it('links the support email address in an error', async () => {
+    vi.mocked(sendSupportTicket).mockResolvedValue({
+      error: 'Please email us at support@example.com instead. <b>not html</b>',
+    });
+    handleSupportTicket();
+
+    document.getElementById('pmf-submit-support-ticket')?.click();
+
+    await vi.waitFor(() => expect(document.querySelector('.alert-danger a')).not.toBeNull());
+    const link = document.querySelector('.alert-danger a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('mailto:support@example.com');
+    expect(link.classList.contains('alert-link')).toBe(true);
+    expect(document.querySelector('.alert-danger b')).toBeNull();
+    expect(document.querySelector('.alert-danger')?.textContent).toBe(
+      'Please email us at support@example.com instead. <b>not html</b>'
+    );
   });
 });

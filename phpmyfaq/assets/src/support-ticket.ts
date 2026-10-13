@@ -18,6 +18,24 @@ import { sendSupportTicket } from './api';
 import { addElement, resetTurnstile } from './utils';
 
 const SUPPORT_TICKET_HASH = '#support-ticket';
+const EMAIL_ADDRESS = /([^\s@]+@[^\s@]+\.[a-z]{2,})/i;
+
+/**
+ * Error alert whose email addresses are mailto links, so visitors can write to support in one click.
+ * Built from text nodes: the message is never parsed as HTML.
+ */
+const errorAlert = (text: string): HTMLElement =>
+  addElement(
+    'div',
+    { classList: 'alert alert-danger' },
+    text
+      .split(EMAIL_ADDRESS)
+      .map((part: string, index: number): Node =>
+        index % 2 === 1
+          ? addElement('a', { href: `mailto:${part}`, classList: 'alert-link', textContent: part })
+          : document.createTextNode(part)
+      )
+  );
 
 /**
  * Opens the support ticket tab for links to …/add-question.html#support-ticket and for the
@@ -81,12 +99,12 @@ export const handleSupportTicket = (): void => {
       }
 
       if (response.error) {
-        message.append(addElement('div', { classList: 'alert alert-danger', innerText: response.error }));
+        message.append(errorAlert(response.error));
       }
     } catch (error) {
       // A failure without a message from our server (network error, proxy error page) is never shown as is
       const failure = form.dataset.sendFailed || (error as Error).message;
-      message.append(addElement('div', { classList: 'alert alert-danger', innerText: failure }));
+      message.append(errorAlert(failure));
     } finally {
       submit.disabled = false;
       resetTurnstile(form);
