@@ -202,6 +202,11 @@ class CategoryController extends AbstractFrontController
             'categorySubsHeader' => Translation::get(key: 'msgSubCategories'),
             'categoryTree' => $categoryTreeData = $this->categoryHelper->getCategoryTreeData(0),
             'categoryEmptyMessage' => $categoryTreeData === [] ? $this->categoryHelper->renderCategoryTree(0) : '',
+            // Expand all / Collapse all only act on subcategories
+            'categoryTreeHasSubcategories' => array_any(
+                $categoryTreeData,
+                static fn(array $node): bool => ($node['children'] ?? []) !== [],
+            ),
             'msgExpandAll' => Translation::get(key: 'msgExpandAll'),
             'msgCollapseAll' => Translation::get(key: 'msgCollapseAll'),
             'subCategoryContent' => Translation::get(key: 'msgSubCategoryContent'),

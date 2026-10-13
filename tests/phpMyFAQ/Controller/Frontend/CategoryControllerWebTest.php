@@ -132,6 +132,43 @@ final class CategoryControllerWebTest extends ControllerWebTestCase
         self::assertResponseContains('pmf-category-tree__item', $response);
     }
 
+    public function testShowAllCategoriesPageHidesExpandAndCollapseWithoutSubcategories(): void
+    {
+        $this->overrideConfigurationValues(['main.enableUserTracking' => false]);
+        $this->seedCategory(793, 'Flat Category');
+        $this->seedCategoryPermissions(793);
+        $this->seedFaqForCategory(9793, 793, 'Flat test question');
+
+        $response = $this->requestPublic('GET', '/show-categories.html');
+
+        self::assertResponseIsSuccessful($response);
+        self::assertResponseContains('Flat Category', $response);
+        self::assertStringNotContainsString('data-pmf-expand-all', (string) $response->getContent());
+        self::assertStringNotContainsString('data-pmf-collapse-all', (string) $response->getContent());
+    }
+
+    public function testShowAllCategoriesPageOffersExpandAndCollapseForSubcategories(): void
+    {
+        $this->overrideConfigurationValues(['main.enableUserTracking' => false]);
+        $this->seedCategory(795, 'Parent With Child');
+        $this->seedCategory(796, 'Nested Child', 795);
+        $this->seedCategoryPermissions(795);
+        $this->seedCategoryPermissions(796);
+        $this->seedFaqForCategory(9795, 795, 'Parent test question');
+        $this->seedFaqForCategory(9796, 796, 'Child test question');
+
+        try {
+            $response = $this->requestPublic('GET', '/show-categories.html');
+        } finally {
+            // The test database is shared: leave no subcategory behind for the other tests
+            $this->getConfiguration('public')->getDb()->query('DELETE FROM faqcategories WHERE id IN (795, 796)');
+        }
+
+        self::assertResponseIsSuccessful($response);
+        self::assertResponseContains('data-pmf-expand-all', $response);
+        self::assertResponseContains('data-pmf-collapse-all', $response);
+    }
+
     public function testShowCategoryPageShowsNoFaqMessageForSeededRootCategory(): void
     {
         $this->overrideConfigurationValues(['main.enableUserTracking' => false]);

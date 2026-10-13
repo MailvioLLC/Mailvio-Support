@@ -13,10 +13,12 @@
     {% if isAllCategories %}
       {% if categoryTree is not empty %}
         {% import 'partials/category-tree.twig' as categoryTreeMacro %}
+        {% if categoryTreeHasSubcategories %}
         <div class="pmf-category-tree-toolbar">
           <button type="button" class="btn btn-sm btn-outline-dark" data-pmf-expand-all>{{ msgExpandAll }}</button>
           <button type="button" class="btn btn-sm btn-outline-dark" data-pmf-collapse-all>{{ msgCollapseAll }}</button>
         </div>
+        {% endif %}
         {{ categoryTreeMacro.renderTree(categoryTree) }}
       {% else %}
         {{ categoryEmptyMessage | raw }}
