@@ -212,7 +212,7 @@ final class QuestionControllerValidationTest extends ApiControllerTestCase
         ], JSON_THROW_ON_ERROR)));
     }
 
-    public function testCreateThrowsExceptionWhenCategoryParameterIsProvided(): void
+    public function testCreateThrowsExceptionWhenCategoryIsNotANumber(): void
     {
         $this->configuration->getAll();
         $this->overrideConfigurationValues(['main.enableAskQuestions' => '1']);
@@ -230,7 +230,7 @@ final class QuestionControllerValidationTest extends ApiControllerTestCase
             'email' => 'test@example.com',
             'lang' => 'en',
             'question' => 'How does this work?',
-            'category' => 1,
+            'category' => 'not-a-category-id',
         ], JSON_THROW_ON_ERROR)));
     }
 
@@ -308,6 +308,39 @@ final class QuestionControllerValidationTest extends ApiControllerTestCase
             'captcha' => 'invalid',
         ], JSON_THROW_ON_ERROR));
 
+        $response = $controller->create($request);
+        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+        self::assertArrayHasKey('error', $payload);
+    }
+
+    public function testCreateAcceptsTheCategoryChosenInTheForm(): void
+    {
+        $this->configuration->getAll();
+        $this->overrideConfigurationValues([
+            'records.allowQuestionsForGuests' => '1',
+            'main.enableSmartAnswering' => '1',
+            'main.enableAskQuestions' => '1',
+        ]);
+
+        $controller = $this->createController();
+        $currentUser = $this->createAuthenticatedUserMock();
+        $currentUser->perm = $this->createConfiguredStub(PermissionInterface::class, ['hasPermission' => true]);
+        [$session, $csrfToken] = $this->createValidCsrfSession();
+        $this->injectControllerState($controller, $currentUser, $session);
+
+        $request = Request::create('/api/question/create', 'POST', content: json_encode([
+            'pmf-csrf-token' => $csrfToken,
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'lang' => 'en',
+            'category' => '1',
+            'question' => 'How does this work?',
+            'captcha' => 'invalid',
+        ], JSON_THROW_ON_ERROR));
+
+        // The category passes validation, so the request gets as far as the captcha check
         $response = $controller->create($request);
         $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
 

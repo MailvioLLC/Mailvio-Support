@@ -210,7 +210,7 @@ class QuestionControllerTest extends TestCase
             'email' => 'test@example.com',
             'question' => 'Test question?',
             'lang' => 'en',
-            'category' => 1,
+            'category' => 'not-a-category-id',
         ]);
 
         $request = new Request([], [], [], [], [], [], $requestData);
