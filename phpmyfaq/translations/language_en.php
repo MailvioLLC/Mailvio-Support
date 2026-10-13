@@ -1910,5 +1910,6 @@ $PMF_LANG['msgAttachmentTypeNotAllowed'] = 'Files of this type (%s) cannot be up
 $LANG_CONF['upgrade.allowUnverifiedNightly'] = ['checkbox', 'Allow installing nightly builds whose SHA-256 digest cannot be verified against GitHub (not recommended)'];
 $PMF_LANG['msgTwofactorLockedOut'] = 'Too many wrong codes. Please try again later.';
 $PMF_LANG['msgAskQuestionNavigation'] = 'Ask a question';
+$PMF_LANG['msgAskThxAwaitingReview'] = 'Thank you for your question! It is not public yet: our team reviews every question before it is published on this Knowledge Center.';
 
 return $PMF_LANG;

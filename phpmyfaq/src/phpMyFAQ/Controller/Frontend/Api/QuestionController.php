@@ -234,7 +234,10 @@ final class QuestionController extends AbstractController
             }
             $this->notification->sendQuestionSuccessMail($questionEntity, $categories);
 
-            return $this->json(['success' => Translation::get(key: 'msgAskThx4Mail')], Response::HTTP_OK);
+            // Say so when the question waits for review, so nobody expects to see it right away
+            $thanks = $visibility === 'Y' ? 'msgAskThx4Mail' : 'msgAskThxAwaitingReview';
+
+            return $this->json(['success' => Translation::get(key: $thanks)], Response::HTTP_OK);
         }
 
         return $this->json(['error' => Translation::get(key: 'errSaveEntries')], Response::HTTP_BAD_REQUEST);

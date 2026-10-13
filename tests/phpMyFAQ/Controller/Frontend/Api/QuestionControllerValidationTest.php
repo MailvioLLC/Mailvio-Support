@@ -398,6 +398,111 @@ final class QuestionControllerValidationTest extends ApiControllerTestCase
         self::assertArrayHasKey('success', $payload);
     }
 
+    public function testCreateSaysTheQuestionAwaitsReviewWhenQuestionsAreNotVisibleRightAway(): void
+    {
+        $this->configuration->getAll();
+        $this->overrideConfigurationValues([
+            'records.allowQuestionsForGuests' => '1',
+            'main.enableSmartAnswering' => '0',
+            'main.enableAskQuestions' => '1',
+            'records.enableVisibilityQuestions' => false,
+        ]);
+        $this->seedCategory();
+
+        $stopWords = $this->createStub(StopWords::class);
+        $stopWords->method('checkBannedWord')->willReturn(true);
+
+        $question = $this->createMock(Question::class);
+        $question
+            ->expects($this->once())
+            ->method('add')
+            ->with($this->callback(static function ($entity): bool {
+                return (
+                    $entity->getUsername() === 'Test User'
+                    && $entity->getEmail() === 'test@example.com'
+                    && $entity->getQuestion() === 'How does this work?'
+                );
+            }));
+
+        $notification = $this->createMock(Notification::class);
+        $notification->expects($this->once())->method('sendQuestionSuccessMail');
+
+        $controller = $this->createController(stopWords: $stopWords, question: $question, notification: $notification);
+        $currentUser = $this->createAuthenticatedUserMock();
+        $currentUser->perm = $this->createConfiguredStub(PermissionInterface::class, ['hasPermission' => true]);
+        [$session, $csrfToken] = $this->createValidCsrfSession();
+        $this->injectControllerState($controller, $currentUser, $session);
+
+        $request = Request::create('/api/question/create', 'POST', content: json_encode([
+            'pmf-csrf-token' => $csrfToken,
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'lang' => 'en',
+            'question' => 'How does this work?',
+            'captcha' => 'ignored-for-logged-in-user',
+        ], JSON_THROW_ON_ERROR));
+
+        $response = $controller->create($request);
+        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertSame(
+            'Thank you for your question! It is not public yet: our team reviews every question before it is published on this Knowledge Center.',
+            $payload['success'],
+        );
+    }
+
+    public function testCreateThanksWithoutReviewNoticeWhenQuestionsAreVisibleRightAway(): void
+    {
+        $this->configuration->getAll();
+        $this->overrideConfigurationValues([
+            'records.allowQuestionsForGuests' => '1',
+            'main.enableSmartAnswering' => '0',
+            'main.enableAskQuestions' => '1',
+            'records.enableVisibilityQuestions' => true,
+        ]);
+        $this->seedCategory();
+
+        $stopWords = $this->createStub(StopWords::class);
+        $stopWords->method('checkBannedWord')->willReturn(true);
+
+        $question = $this->createMock(Question::class);
+        $question
+            ->expects($this->once())
+            ->method('add')
+            ->with($this->callback(static function ($entity): bool {
+                return (
+                    $entity->getUsername() === 'Test User'
+                    && $entity->getEmail() === 'test@example.com'
+                    && $entity->getQuestion() === 'How does this work?'
+                );
+            }));
+
+        $notification = $this->createMock(Notification::class);
+        $notification->expects($this->once())->method('sendQuestionSuccessMail');
+
+        $controller = $this->createController(stopWords: $stopWords, question: $question, notification: $notification);
+        $currentUser = $this->createAuthenticatedUserMock();
+        $currentUser->perm = $this->createConfiguredStub(PermissionInterface::class, ['hasPermission' => true]);
+        [$session, $csrfToken] = $this->createValidCsrfSession();
+        $this->injectControllerState($controller, $currentUser, $session);
+
+        $request = Request::create('/api/question/create', 'POST', content: json_encode([
+            'pmf-csrf-token' => $csrfToken,
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'lang' => 'en',
+            'question' => 'How does this work?',
+            'captcha' => 'ignored-for-logged-in-user',
+        ], JSON_THROW_ON_ERROR));
+
+        $response = $controller->create($request);
+        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertSame('Thank you for your question!', $payload['success']);
+    }
+
     public function testCreateRecordsSubmittedHistoryEventOnSuccess(): void
     {
         $this->configuration->getAll();
