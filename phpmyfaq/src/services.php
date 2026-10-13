@@ -139,6 +139,7 @@ use phpMyFAQ\Controller\Frontend\CustomPageController as FrontendCustomPageContr
 use phpMyFAQ\Controller\Frontend\FaqController as FrontendFaqController;
 use phpMyFAQ\Controller\Frontend\GlossaryController as FrontendGlossaryController;
 use phpMyFAQ\Controller\Frontend\KeycloakAuthenticationController as FrontendKeycloakAuthenticationController;
+use phpMyFAQ\Controller\Frontend\LegacyHelpdeskController;
 use phpMyFAQ\Controller\Frontend\NewsController as FrontendNewsController;
 use phpMyFAQ\Controller\Frontend\OAuthDiscoveryController as FrontendOAuthDiscoveryController;
 use phpMyFAQ\Controller\Frontend\OverviewController as FrontendOverviewController;
@@ -1064,6 +1065,10 @@ return static function (ContainerConfigurator $container): void {
     $services->set(FrontendSearchController::class, FrontendSearchController::class)->args([
         service('phpmyfaq.user.session'),
         service('phpmyfaq.language.plurals'),
+    ]);
+    $services->set(LegacyHelpdeskController::class, LegacyHelpdeskController::class)->args([
+        service('phpmyfaq.faq.statistics'),
+        service('phpmyfaq.category'),
     ]);
     $services->set(FrontendSitemapController::class, FrontendSitemapController::class)->args([
         service('phpmyfaq.user.session'),
