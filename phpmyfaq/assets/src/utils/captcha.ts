@@ -39,3 +39,19 @@ export const handleReloadCaptcha = (reloadButton: HTMLElement): void => {
     }
   });
 };
+
+interface TurnstileApi {
+  reset: (widget?: string | HTMLElement) => void;
+}
+
+/**
+ * Turnstile tokens are single-use: after a submission the widget has to issue a fresh one
+ */
+export const resetTurnstile = (form: HTMLFormElement): void => {
+  const widget = form.querySelector<HTMLElement>('.cf-turnstile');
+  const turnstile = (window as Window & { turnstile?: TurnstileApi }).turnstile;
+
+  if (widget && turnstile) {
+    turnstile.reset(widget);
+  }
+};

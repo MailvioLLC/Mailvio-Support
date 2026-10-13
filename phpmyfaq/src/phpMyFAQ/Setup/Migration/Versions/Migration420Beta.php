@@ -41,7 +41,8 @@ readonly class Migration420Beta extends AbstractMigration
         return (
             'Add server-side expiry for remember-me tokens, store one remember-me token per browser, '
             . 'bind Microsoft Entra ID logins to the immutable object identifier, record the last '
-            . 'accepted TOTP time slice, and add the upgrade.allowUnverifiedNightly configuration'
+            . 'accepted TOTP time slice, add the upgrade.allowUnverifiedNightly configuration, and add '
+            . 'the Cloudflare Turnstile captcha configuration'
         );
     }
 
@@ -97,6 +98,10 @@ readonly class Migration420Beta extends AbstractMigration
 
         // Nightly update packages without a published digest are refused unless opted in
         $recorder->addConfig('upgrade.allowUnverifiedNightly', 'false');
+
+        // Cloudflare Turnstile captcha; its secret key is read from TURNSTILE_SECRET_KEY in .env
+        $recorder->addConfig('security.enableTurnstile', 'false');
+        $recorder->addConfig('security.turnstileSiteKey', '');
     }
 
     private function tableExists(string $table): bool

@@ -23,5 +23,5 @@ interface CaptchaInterface
 {
     public function checkCaptchaCode(string $code): bool;
 
-    public function setUserIsLoggedIn(bool $userIsLoggedIn): BuiltinCaptcha|GoogleRecaptcha;
+    public function setUserIsLoggedIn(bool $userIsLoggedIn): BuiltinCaptcha|GoogleRecaptcha|Turnstile;
 }

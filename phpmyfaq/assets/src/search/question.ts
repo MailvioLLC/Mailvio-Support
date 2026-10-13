@@ -13,7 +13,7 @@
  * @since     2023-02-02
  */
 
-import { addElement } from '../utils';
+import { addElement, resetTurnstile } from '../utils';
 import { createQuestion } from '../api';
 
 export const handleQuestion = () => {
@@ -81,6 +81,8 @@ export const handleQuestion = () => {
             'afterend',
             addElement('div', { classList: 'alert alert-danger', innerText: (error as Error).message })
           );
+        } finally {
+          resetTurnstile(form);
         }
       }
     });

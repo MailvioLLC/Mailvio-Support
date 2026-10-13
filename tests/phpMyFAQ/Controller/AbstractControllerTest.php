@@ -97,7 +97,6 @@ class AbstractControllerTest extends TestCase
             {
                 return $this->captchaCodeIsValid($request);
             }
-
         };
     }
 
@@ -555,8 +554,7 @@ class AbstractControllerTest extends TestCase
         \phpMyFAQ\Container\ContainerRegistry::set($sharedContainer);
 
         try {
-            $controller = new class extends AbstractController {
-            };
+            $controller = new class extends AbstractController {};
 
             $reflectionProperty = new \ReflectionProperty(AbstractController::class, 'container');
             $this->assertSame($sharedContainer, $reflectionProperty->getValue($controller));
@@ -645,6 +643,24 @@ class AbstractControllerTest extends TestCase
         $this->expectException(\JsonException::class);
 
         $this->abstractController->captchaCodeIsValidPublic($request);
+    }
+
+    public function testCaptchaCodeIsValidReadsTheTurnstileTokenWhenTurnstileIsEnabled(): void
+    {
+        $this->configurationMock
+            ->method('get')
+            ->willReturnCallback(static fn(string $item): bool => $item === 'security.enableTurnstile');
+        $this->currentUserMock->method('isLoggedIn')->willReturn(false);
+        $_ENV['TURNSTILE_SECRET_KEY'] = 'secret-key';
+
+        try {
+            // The built-in captcha field is not a Turnstile token, so nothing reaches Cloudflare
+            $request = Request::create('/', 'POST', [], [], [], [], '{"captcha":"ABC123"}');
+
+            $this->assertFalse($this->abstractController->captchaCodeIsValidPublic($request));
+        } finally {
+            unset($_ENV['TURNSTILE_SECRET_KEY']);
+        }
     }
 
     public function testJsonWithComplexData(): void

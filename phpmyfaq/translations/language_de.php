@@ -1251,6 +1251,8 @@ $PMF_LANG['msgGoToCategory'] = 'Zur Kategorie';
 $LANG_CONF['security.enableGoogleReCaptchaV2'] = ['checkbox', 'Aktiviere unsichtbares Google ReCAPTCHA v2'];
 $LANG_CONF['security.googleReCaptchaV2SiteKey'] = ['input', 'Google ReCAPTCHA v2 Website-Schlüssel'];
 $LANG_CONF['security.googleReCaptchaV2SecretKey'] = ['input', 'Google ReCAPTCHA v2 Geheimer Schlüssel'];
+$LANG_CONF['security.enableTurnstile'] = ['checkbox', 'Aktiviere Cloudflare Turnstile', 'Der geheime Schlüssel wird aus TURNSTILE_SECRET_KEY in der .env-Datei gelesen'];
+$LANG_CONF['security.turnstileSiteKey'] = ['input', 'Cloudflare Turnstile Website-Schlüssel'];
 
 // added v3.2.0-alpha - 2023-03-11 by Jan
 $PMF_LANG['msgTwofactorEnabled'] = "2-Faktor-Authentifizierung aktivieren";

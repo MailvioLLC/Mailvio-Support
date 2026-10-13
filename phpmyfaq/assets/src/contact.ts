@@ -14,7 +14,7 @@
  */
 
 import { send } from './api';
-import { addElement } from './utils';
+import { addElement, resetTurnstile } from './utils';
 
 export const handleContactForm = (): void => {
   const contactSubmit = document.getElementById('pmf-submit-contact') as HTMLElement;
@@ -60,6 +60,8 @@ export const handleContactForm = (): void => {
             'afterend',
             addElement('div', { classList: 'alert alert-danger', innerText: (error as Error).message })
           );
+        } finally {
+          resetTurnstile(form);
         }
       }
     });

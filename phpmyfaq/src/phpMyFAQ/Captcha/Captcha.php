@@ -20,6 +20,7 @@ declare(strict_types=1);
 namespace phpMyFAQ\Captcha;
 
 use phpMyFAQ\Configuration;
+use phpMyFAQ\Environment;
 
 class Captcha
 {
@@ -27,10 +28,17 @@ class Captcha
 
     private static Configuration $configuration;
 
-    public static function getInstance(Configuration $configuration): BuiltinCaptcha|GoogleRecaptcha
+    public static function getInstance(Configuration $configuration): BuiltinCaptcha|GoogleRecaptcha|Turnstile
     {
         self::$configuration = $configuration;
         self::$captcha = new BuiltinCaptcha(self::$configuration);
+
+        if (self::$configuration->get('security.enableTurnstile')) {
+            self::$captcha = new Turnstile((string) Environment::get(
+                Turnstile::SECRET_KEY_ENVIRONMENT_VARIABLE,
+                default: '',
+            ));
+        }
 
         if (self::$configuration->get('security.enableGoogleReCaptchaV2')) {
             self::$captcha = new GoogleRecaptcha(self::$configuration);

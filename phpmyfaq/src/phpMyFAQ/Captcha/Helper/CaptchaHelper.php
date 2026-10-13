@@ -32,6 +32,10 @@ class CaptchaHelper
         self::$configuration = $configuration;
         self::$captchaHelper = new BuiltinCaptchaAbstractHelper(self::$configuration);
 
+        if (self::$configuration->get('security.enableTurnstile')) {
+            self::$captchaHelper = new TurnstileHelper(self::$configuration);
+        }
+
         if (self::$configuration->get('security.enableGoogleReCaptchaV2')) {
             self::$captchaHelper = new GoogleRecaptchaAbstractHelper(self::$configuration);
         }

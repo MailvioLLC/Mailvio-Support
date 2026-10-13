@@ -14,7 +14,7 @@
  */
 
 import { Modal } from 'bootstrap';
-import { escape, pushErrorNotification, pushNotification } from '../utils';
+import { escape, pushErrorNotification, pushNotification, resetTurnstile } from '../utils';
 import { createComment } from '../api';
 import { CommentData } from '../interfaces';
 import { renderCommentEditor } from '../comment/editor';
@@ -71,6 +71,8 @@ export const handleSaveComment = (): void => {
         } catch (error: unknown) {
           console.error('Error: ', error);
           pushErrorNotification(String(error));
+        } finally {
+          resetTurnstile(form);
         }
       }
     });

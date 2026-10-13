@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { handleReloadCaptcha } from './captcha';
+import { handleReloadCaptcha, resetTurnstile } from './captcha';
 
 global.fetch = vi.fn(() =>
   Promise.resolve({
@@ -46,5 +46,38 @@ describe('handleReloadCaptcha', () => {
       referrerPolicy: 'no-referrer',
     });
     expect(captcha.value).toBe('');
+  });
+});
+
+describe('resetTurnstile', () => {
+  const turnstileWindow = window as Window & { turnstile?: { reset: (widget?: string | HTMLElement) => void } };
+
+  test('resets the Turnstile widget of the form', () => {
+    const reset = vi.fn();
+    turnstileWindow.turnstile = { reset };
+    const form = document.createElement('form');
+    form.innerHTML = '<div class="cf-turnstile" data-sitekey="site-key"></div>';
+
+    resetTurnstile(form);
+
+    expect(reset).toHaveBeenCalledWith(form.querySelector('.cf-turnstile'));
+    delete turnstileWindow.turnstile;
+  });
+
+  test('does nothing when the form has no Turnstile widget', () => {
+    const reset = vi.fn();
+    turnstileWindow.turnstile = { reset };
+
+    resetTurnstile(document.createElement('form'));
+
+    expect(reset).not.toHaveBeenCalled();
+    delete turnstileWindow.turnstile;
+  });
+
+  test('does nothing while the Turnstile script has not loaded yet', () => {
+    const form = document.createElement('form');
+    form.innerHTML = '<div class="cf-turnstile" data-sitekey="site-key"></div>';
+
+    expect(() => resetTurnstile(form)).not.toThrow();
   });
 });

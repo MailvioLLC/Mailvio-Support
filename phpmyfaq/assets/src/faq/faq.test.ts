@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../utils', () => ({
+  resetTurnstile: vi.fn(),
   addElement: vi.fn((_tag: string, props: Record<string, string>) => {
     const el = document.createElement(_tag);
     if (props.classList) el.className = props.classList;

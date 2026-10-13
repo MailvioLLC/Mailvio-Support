@@ -41,6 +41,15 @@ final class SecurityHeadersListenerTest extends TestCase
         self::assertStringContainsString("font-src 'self' data:", $csp);
         self::assertStringContainsString("connect-src 'self'", $csp);
         self::assertStringContainsString("frame-src 'self' https://www.google.com", $csp);
+        self::assertStringContainsString(
+            "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com "
+            . 'https://challenges.cloudflare.com;',
+            $csp,
+        );
+        self::assertStringContainsString(
+            "frame-src 'self' https://www.google.com https://challenges.cloudflare.com;",
+            $csp,
+        );
         self::assertStringContainsString("frame-ancestors 'self'", $csp);
         self::assertStringContainsString("object-src 'none'", $csp);
         self::assertStringContainsString("base-uri 'self'", $csp);
@@ -59,7 +68,8 @@ final class SecurityHeadersListenerTest extends TestCase
 
         $csp = (string) $response->headers->get('Content-Security-Policy');
         self::assertStringContainsString(
-            "frame-src 'self' https://www.google.com https://www.youtube.com https://player.vimeo.com;",
+            "frame-src 'self' https://www.google.com https://challenges.cloudflare.com https://www.youtube.com "
+            . 'https://player.vimeo.com;',
             $csp,
         );
         self::assertStringContainsString("media-src 'self' https://www.youtube.com https://player.vimeo.com;", $csp);

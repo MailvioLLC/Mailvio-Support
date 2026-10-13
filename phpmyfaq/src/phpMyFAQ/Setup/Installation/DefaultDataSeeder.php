@@ -203,6 +203,8 @@ class DefaultDataSeeder
             'security.enableGoogleReCaptchaV2' => 'false',
             'security.googleReCaptchaV2SiteKey' => '',
             'security.googleReCaptchaV2SecretKey' => '',
+            'security.enableTurnstile' => 'false',
+            'security.turnstileSiteKey' => '',
             'security.loginWithEmailAddress' => 'false',
             'security.enableWebAuthnSupport' => 'false',
             'security.enableAdminSessionTimeoutCounter' => 'true',

@@ -15,7 +15,7 @@
 
 import { addElement } from '../utils';
 import { createBookmark, createFaq, deleteBookmark } from '../api';
-import { pushErrorNotification, pushNotification } from '../utils';
+import { pushErrorNotification, pushNotification, resetTurnstile } from '../utils';
 
 export const handleAddFaq = () => {
   const addFaqSubmit = document.getElementById('pmf-submit-faq');
@@ -61,6 +61,8 @@ export const handleAddFaq = () => {
             'afterend',
             addElement('div', { classList: 'alert alert-danger', innerText: 'An unexpected error occurred.' })
           );
+        } finally {
+          resetTurnstile(form);
         }
       }
     });

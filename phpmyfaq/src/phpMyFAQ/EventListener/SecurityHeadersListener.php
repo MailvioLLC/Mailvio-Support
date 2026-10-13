@@ -31,7 +31,7 @@ use Symfony\Component\HttpKernel\Event\ResponseEvent;
  * The policy keeps 'unsafe-inline' for scripts and styles because the
  * templates still contain inline scripts and style attributes; moving them
  * to nonces is a separate task. External hosts that phpMyFAQ legitimately
- * loads (Google reCAPTCHA, Gravatar avatars, embedded media from the
+ * loads (Google reCAPTCHA, Cloudflare Turnstile, Gravatar avatars, embedded media from the
  * records.allowedMediaHosts configuration) are allowed explicitly.
  */
 final readonly class SecurityHeadersListener
@@ -39,6 +39,8 @@ final readonly class SecurityHeadersListener
     private const array RECAPTCHA_SCRIPT_HOSTS = ['https://www.google.com', 'https://www.gstatic.com'];
 
     private const array RECAPTCHA_FRAME_HOSTS = ['https://www.google.com'];
+
+    private const array TURNSTILE_HOSTS = ['https://challenges.cloudflare.com'];
 
     public function __construct(
         private ?Configuration $configuration = null,
@@ -75,13 +77,16 @@ final readonly class SecurityHeadersListener
 
         $directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' " . implode(' ', self::RECAPTCHA_SCRIPT_HOSTS),
+            "script-src 'self' 'unsafe-inline' "
+                . implode(' ', [...self::RECAPTCHA_SCRIPT_HOSTS, ...self::TURNSTILE_HOSTS]),
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: https:",
             "font-src 'self' data:",
             "connect-src 'self'",
             "media-src 'self'" . $this->joinOrigins($mediaHosts),
-            "frame-src 'self' " . implode(' ', self::RECAPTCHA_FRAME_HOSTS) . $this->joinOrigins($mediaHosts),
+            "frame-src 'self' "
+                . implode(' ', [...self::RECAPTCHA_FRAME_HOSTS, ...self::TURNSTILE_HOSTS])
+                . $this->joinOrigins($mediaHosts),
             "frame-ancestors 'self'",
             "object-src 'none'",
             "base-uri 'self'",

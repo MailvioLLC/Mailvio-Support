@@ -5,6 +5,7 @@ vi.mock('../api', () => ({
 }));
 
 vi.mock('../utils', () => ({
+  resetTurnstile: vi.fn(),
   addElement: vi.fn((tag: string, props: Record<string, string>) => {
     const el = document.createElement(tag);
     if (props.classList) el.className = props.classList;

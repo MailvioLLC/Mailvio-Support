@@ -24,6 +24,8 @@ use LogicException;
 use OpenApi\Attributes as OA;
 use phpMyFAQ\Attachment\AttachmentFactory;
 use phpMyFAQ\Captcha\Captcha;
+use phpMyFAQ\Captcha\GoogleRecaptcha;
+use phpMyFAQ\Captcha\Turnstile;
 use phpMyFAQ\Configuration;
 use phpMyFAQ\Container\ContainerRegistry;
 use phpMyFAQ\Controller\Administration\SkipsAuthenticationCheck;
@@ -614,10 +616,12 @@ abstract class AbstractController
 
         $data = json_decode($request->getContent(), associative: false, depth: 512, flags: JSON_THROW_ON_ERROR);
 
-        $code = Filter::filterVar($data->captcha ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        if ($this->configuration->get(item: 'security.enableGoogleReCaptchaV2')) {
-            $code = Filter::filterVar($data->{'g-recaptcha-response'} ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        }
+        $field = match (true) {
+            $captcha instanceof GoogleRecaptcha => 'g-recaptcha-response',
+            $captcha instanceof Turnstile => 'cf-turnstile-response',
+            default => 'captcha',
+        };
+        $code = Filter::filterVar($data->{$field} ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
 
         return $captcha->checkCaptchaCode((string) $code);
     }

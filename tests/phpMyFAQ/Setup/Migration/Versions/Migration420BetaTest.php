@@ -67,6 +67,7 @@ class Migration420BetaTest extends TestCase
         $this->assertStringContainsString('Entra ID', $description);
         $this->assertStringContainsString('TOTP', $description);
         $this->assertStringContainsString('upgrade.allowUnverifiedNightly', $description);
+        $this->assertStringContainsString('Cloudflare Turnstile', $description);
     }
 
     public function testUpRecordsTheNightlyVerificationConfiguration(): void
@@ -81,9 +82,13 @@ class Migration420BetaTest extends TestCase
 
         $operations = $recorder->getOperationsByType('config_add');
 
-        $this->assertCount(1, $operations);
+        $this->assertCount(3, $operations);
         $this->assertSame('upgrade.allowUnverifiedNightly', $operations[0]->getKey());
         $this->assertSame('false', $operations[0]->getValue());
+        $this->assertSame('security.enableTurnstile', $operations[1]->getKey());
+        $this->assertSame('false', $operations[1]->getValue());
+        $this->assertSame('security.turnstileSiteKey', $operations[2]->getKey());
+        $this->assertSame('', $operations[2]->getValue());
     }
 
     public function testUpRecordsAllColumnsAndTheUniqueIndexWhenMissing(): void
@@ -179,11 +184,13 @@ class Migration420BetaTest extends TestCase
         }
 
         $rows = $db->fetchAll($db->query('SELECT token_hash, user_id, expires FROM faquser_remember_tokens'));
-        $this->assertEquals([(object) ['token_hash' => 'remembered-hash', 'user_id' => 1, 'expires' => 1800000000]], $rows);
+        $this->assertEquals(
+            [(object) ['token_hash' => 'remembered-hash', 'user_id' => 1, 'expires' => 1800000000]],
+            $rows,
+        );
         $this->assertFalse(
             $db->query("INSERT INTO faquser_remember_tokens VALUES ('remembered-hash', 2, 1800000000)"),
             'A token hash must identify exactly one browser',
         );
     }
-
 }

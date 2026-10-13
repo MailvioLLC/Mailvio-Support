@@ -36,4 +36,19 @@ class CaptchaTest extends TestCase
 
         $this->assertInstanceOf(BuiltinCaptcha::class, $captcha);
     }
+
+    public function testGetInstanceWithTurnstileEnabled(): void
+    {
+        $configuration = $this->createStub(Configuration::class);
+        $configuration
+            ->method('get')
+            ->willReturnMap([
+                ['security.enableTurnstile',         true],
+                ['security.enableGoogleReCaptchaV2', false],
+            ]);
+
+        $captcha = Captcha::getInstance($configuration);
+
+        $this->assertInstanceOf(Turnstile::class, $captcha);
+    }
 }

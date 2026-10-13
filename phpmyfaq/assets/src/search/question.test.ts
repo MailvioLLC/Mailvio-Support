@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../utils', () => ({
+  resetTurnstile: vi.fn(),
   addElement: vi.fn((tag: string, props: Record<string, string>) => {
     const el = document.createElement(tag);
     if (props.classList) el.className = props.classList;
@@ -19,11 +20,34 @@ vi.mock('../api', () => ({
 
 import { handleQuestion } from './question';
 import { createQuestion } from '../api';
+import { resetTurnstile } from '../utils';
 
 describe('handleQuestion', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = '';
+  });
+
+  it('should reset the Turnstile widget after a rejected submission', async () => {
+    document.body.innerHTML = `
+      <form id="pmf-question-form" class="needs-validation">
+        <textarea name="question">How to install?</textarea>
+      </form>
+      <button id="pmf-submit-question">Submit</button>
+      <div id="loader"></div>
+      <div id="pmf-question-response"></div>
+    `;
+
+    vi.mocked(createQuestion).mockResolvedValue({ error: 'Captcha' });
+
+    handleQuestion();
+
+    const button = document.getElementById('pmf-submit-question') as HTMLButtonElement;
+    button.click();
+
+    await vi.waitFor(() => {
+      expect(resetTurnstile).toHaveBeenCalledWith(document.querySelector('#pmf-question-form'));
+    });
   });
 
   it('should do nothing when submit button is missing', () => {

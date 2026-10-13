@@ -14,7 +14,7 @@
  */
 
 import { ApiResponse } from '../interfaces';
-import { addElement } from '../utils';
+import { addElement, resetTurnstile } from '../utils';
 import { register } from '../api';
 
 export const handleRegister = () => {
@@ -59,6 +59,8 @@ export const handleRegister = () => {
             'afterend',
             addElement('div', { classList: 'alert alert-danger', innerText: (error as Error).message })
           );
+        } finally {
+          resetTurnstile(form);
         }
       }
     });
