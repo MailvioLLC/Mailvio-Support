@@ -26,8 +26,9 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * The bot credentials come from phpmyfaq/.env (ZULIP_URL, ZULIP_BOT_EMAIL, ZULIP_BOT_API_KEY and
- * the optional ZULIP_STREAM_ERROR_LOGS). Without them, alerts only go to the log.
+ * The bot credentials come from phpmyfaq/.env (ZULIP_URL, ZULIP_BOT_EMAIL, ZULIP_BOT_API_KEY, and
+ * the optional ZULIP_STREAM and ZULIP_TOPIC). Without them, alerts only go to the log. A configured
+ * ZULIP_TOPIC collects every alert of this site in one topic; otherwise each alert names its own.
  */
 final readonly class ZulipAlertNotifier implements AlertNotifier
 {
@@ -43,6 +44,7 @@ final readonly class ZulipAlertNotifier implements AlertNotifier
         #[\SensitiveParameter]
         private string $botApiKey,
         private string $stream = self::DEFAULT_STREAM,
+        private string $topic = '',
     ) {
     }
 
@@ -54,7 +56,8 @@ final readonly class ZulipAlertNotifier implements AlertNotifier
             (string) Environment::get('ZULIP_URL', ''),
             (string) Environment::get('ZULIP_BOT_EMAIL', ''),
             (string) Environment::get('ZULIP_BOT_API_KEY', ''),
-            self::streamOrDefault((string) Environment::get('ZULIP_STREAM_ERROR_LOGS', '')),
+            self::streamOrDefault((string) Environment::get('ZULIP_STREAM', '')),
+            (string) Environment::get('ZULIP_TOPIC', ''),
         );
     }
 
@@ -80,7 +83,7 @@ final readonly class ZulipAlertNotifier implements AlertNotifier
                 'body' => [
                     'type' => 'stream',
                     'to' => $this->stream,
-                    'topic' => $topic,
+                    'topic' => $this->topic !== '' ? $this->topic : $topic,
                     'content' => $this->truncate($message),
                 ],
                 'timeout' => 10,

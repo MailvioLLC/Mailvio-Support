@@ -61,7 +61,8 @@ final class ZulipAlertNotifierTest extends TestCase
         $_ENV['ZULIP_URL'] = 'https://chat.example.com';
         $_ENV['ZULIP_BOT_EMAIL'] = 'bot@example.com';
         $_ENV['ZULIP_BOT_API_KEY'] = 'api-key';
-        unset($_ENV['ZULIP_STREAM_ERROR_LOGS']);
+        $_ENV['ZULIP_STREAM'] = 'alerts';
+        $_ENV['ZULIP_TOPIC'] = 'Support site';
 
         try {
             ZulipAlertNotifier::fromEnvironment($httpClient, $configuration)->alert('Topic', 'Mail refused');
@@ -71,7 +72,35 @@ final class ZulipAlertNotifierTest extends TestCase
 
         self::assertSame('https://chat.example.com/api/v1/messages', $requests[0][0]);
         parse_str($requests[0][1]['body'], $body);
-        self::assertSame(ZulipAlertNotifier::DEFAULT_STREAM, $body['to']);
+        self::assertSame('alerts', $body['to']);
+        self::assertSame('Support site', $body['topic']);
+    }
+
+    public function testFallsBackToTheDefaultStreamWithoutAConfiguredOne(): void
+    {
+        $stream = '';
+        $httpClient = new MockHttpClient(static function (string $method, string $url, array $options) use (
+            &$stream,
+        ): MockResponse {
+            parse_str($options['body'], $body);
+            $stream = $body['to'];
+            return new MockResponse('{}', ['http_code' => 200]);
+        });
+        $configuration = $this->createStub(Configuration::class);
+        $configuration->method('getLogger')->willReturn(new \Monolog\Logger('test'));
+        $backup = $_ENV;
+        $_ENV['ZULIP_URL'] = 'https://chat.example.com';
+        $_ENV['ZULIP_BOT_EMAIL'] = 'bot@example.com';
+        $_ENV['ZULIP_BOT_API_KEY'] = 'api-key';
+        unset($_ENV['ZULIP_STREAM'], $_ENV['ZULIP_TOPIC']);
+
+        try {
+            ZulipAlertNotifier::fromEnvironment($httpClient, $configuration)->alert('Topic', 'Mail refused');
+        } finally {
+            $_ENV = $backup;
+        }
+
+        self::assertSame(ZulipAlertNotifier::DEFAULT_STREAM, $stream);
     }
 
     public function testTruncatesLongAlerts(): void
