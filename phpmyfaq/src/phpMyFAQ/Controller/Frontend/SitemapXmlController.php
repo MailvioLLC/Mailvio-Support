@@ -17,15 +17,16 @@
 
 declare(strict_types=1);
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
+use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Seo\SitemapXmlService;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-final class SitemapController extends AbstractController
+final class SitemapXmlController extends AbstractController
 {
     public function __construct(
         private readonly SitemapXmlService $sitemapXmlService,

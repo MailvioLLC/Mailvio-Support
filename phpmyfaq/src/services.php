@@ -148,9 +148,9 @@ use phpMyFAQ\Controller\Frontend\PdfController;
 use phpMyFAQ\Controller\Frontend\QuestionsController as FrontendQuestionsController;
 use phpMyFAQ\Controller\Frontend\SearchController as FrontendSearchController;
 use phpMyFAQ\Controller\Frontend\SitemapController as FrontendSitemapController;
+use phpMyFAQ\Controller\Frontend\SitemapXmlController;
 use phpMyFAQ\Controller\Frontend\StartpageController;
 use phpMyFAQ\Controller\Frontend\UserController as FrontendUserController;
-use phpMyFAQ\Controller\SitemapController as RootSitemapController;
 use phpMyFAQ\CustomPage;
 use phpMyFAQ\CustomPage\CustomPageRepository;
 use phpMyFAQ\Database\DatabaseHelper;
@@ -1191,8 +1191,8 @@ return static function (ContainerConfigurator $container): void {
         service('phpmyfaq.auth.oauth2.authorization-server'),
     ]);
 
-    // Batch 6: Root controllers
-    $services->set(RootSitemapController::class, RootSitemapController::class)->args([
+    // Batch 6: Public controllers outside the page flow
+    $services->set(SitemapXmlController::class, SitemapXmlController::class)->args([
         service('phpmyfaq.seo.sitemap-xml'),
     ]);
     $services->set(FrontendOAuthDiscoveryController::class, FrontendOAuthDiscoveryController::class)->args([

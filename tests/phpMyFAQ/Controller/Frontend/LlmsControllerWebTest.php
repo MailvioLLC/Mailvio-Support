@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
+use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Functional\ControllerWebTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -16,7 +17,7 @@ final class LlmsControllerWebTest extends ControllerWebTestCase
 {
     public function testLlmsEndpointReturnsPlainText(): void
     {
-        $response = $this->requestAny('GET', '/llms.txt');
+        $response = $this->requestPublic('GET', '/llms.txt');
 
         self::assertResponseIsSuccessful($response);
         self::assertSame('text/plain', $response->headers->get('Content-Type'));

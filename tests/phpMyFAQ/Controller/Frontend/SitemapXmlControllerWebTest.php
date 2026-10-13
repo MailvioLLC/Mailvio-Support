@@ -2,21 +2,22 @@
 
 declare(strict_types=1);
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
+use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Functional\ControllerWebTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\Attributes\UsesNamespace;
 
-#[CoversClass(SitemapController::class)]
+#[CoversClass(SitemapXmlController::class)]
 #[UsesNamespace('phpMyFAQ')]
 #[UsesClass(AbstractController::class)]
-final class SitemapControllerWebTest extends ControllerWebTestCase
+final class SitemapXmlControllerWebTest extends ControllerWebTestCase
 {
     public function testXmlSitemapReturnsXml(): void
     {
-        $response = $this->requestAny('GET', '/sitemap.xml');
+        $response = $this->requestPublic('GET', '/sitemap.xml');
 
         self::assertResponseIsSuccessful($response);
         self::assertSame('text/xml', $response->headers->get('Content-Type'));
@@ -25,7 +26,7 @@ final class SitemapControllerWebTest extends ControllerWebTestCase
 
     public function testGzipSitemapReturnsGzipPayload(): void
     {
-        $response = $this->requestAny('GET', '/sitemap.gz');
+        $response = $this->requestPublic('GET', '/sitemap.gz');
 
         self::assertResponseIsSuccessful($response);
         self::assertSame('application/x-gzip', $response->headers->get('Content-Type'));
@@ -34,7 +35,7 @@ final class SitemapControllerWebTest extends ControllerWebTestCase
 
     public function testXmlGzipSitemapReturnsGzipPayload(): void
     {
-        $response = $this->requestAny('GET', '/sitemap.xml.gz');
+        $response = $this->requestPublic('GET', '/sitemap.xml.gz');
 
         self::assertResponseIsSuccessful($response);
         self::assertSame('application/x-gzip', $response->headers->get('Content-Type'));

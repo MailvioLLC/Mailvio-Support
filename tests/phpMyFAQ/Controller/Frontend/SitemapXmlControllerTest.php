@@ -1,6 +1,6 @@
 <?php
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
 use phpMyFAQ\Configuration;
 use phpMyFAQ\Database\Sqlite3;
@@ -15,12 +15,12 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Response;
 
 #[AllowMockObjectsWithoutExpectations]
-#[CoversClass(SitemapController::class)]
+#[CoversClass(SitemapXmlController::class)]
 #[UsesNamespace('phpMyFAQ')]
-class SitemapControllerTest extends TestCase
+class SitemapXmlControllerTest extends TestCase
 {
     private SitemapXmlService $sitemapXmlService;
-    private SitemapController $controller;
+    private SitemapXmlController $controller;
 
     /**
      * @throws Exception
@@ -43,7 +43,7 @@ class SitemapControllerTest extends TestCase
         new Configuration($dbHandle);
 
         $this->sitemapXmlService = $this->createStub(SitemapXmlService::class);
-        $this->controller = new SitemapController($this->sitemapXmlService);
+        $this->controller = new SitemapXmlController($this->sitemapXmlService);
     }
 
     /**

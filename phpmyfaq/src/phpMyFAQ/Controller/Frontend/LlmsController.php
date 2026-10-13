@@ -1,7 +1,7 @@
 <?php
 
 /**
- * The robots.txt Controller
+ * The llms.txt Controller
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License,
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
@@ -12,30 +12,31 @@
  * @copyright 2024-2026 phpMyFAQ Team
  * @license   https://www.mozilla.org/MPL/2.0/ Mozilla Public License Version 2.0
  * @link      https://www.phpmyfaq.de
- * @since     2024-11-17
+ * @since     2025-01-07
  */
 
 declare(strict_types=1);
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
+use phpMyFAQ\Controller\AbstractController;
 use Exception;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-final class RobotsController extends AbstractController
+final class LlmsController extends AbstractController
 {
     /**
      * @throws Exception
      */
-    #[Route(path: '/robots.txt', name: 'public.robots.txt', methods: ['GET'])]
+    #[Route(path: '/llms.txt', name: 'public.llms.txt', methods: ['GET'])]
     public function index(): Response
     {
         $response = new Response();
 
         $response->headers->set(key: 'Content-Type', values: 'text/plain');
         $response->setStatusCode(Response::HTTP_OK);
-        $response->setContent((string) $this->configuration->get(item: 'seo.contentRobotsText'));
+        $response->setContent((string) $this->configuration->get(item: 'seo.contentLlmsText'));
 
         return $response;
     }

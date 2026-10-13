@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
+use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Functional\ControllerWebTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -16,7 +17,7 @@ final class RobotsControllerWebTest extends ControllerWebTestCase
 {
     public function testRobotsEndpointReturnsPlainText(): void
     {
-        $response = $this->requestAny('GET', '/robots.txt');
+        $response = $this->requestPublic('GET', '/robots.txt');
 
         self::assertResponseIsSuccessful($response);
         self::assertSame('text/plain', $response->headers->get('Content-Type'));

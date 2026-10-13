@@ -94,4 +94,16 @@ class RouteCollectionBuilderTest extends TestCase
 
         $this->assertInstanceOf(RouteCollection::class, $routes);
     }
+
+    public function testPublicContextServesTheFilesCrawlersLookFor(): void
+    {
+        $this->configuration->method('get')->willReturn(false);
+
+        $routes = $this->builder->build('public', false);
+
+        foreach (['/robots.txt', '/llms.txt', '/sitemap.xml', '/sitemap.xml.gz', '/sitemap.gz'] as $path) {
+            $paths = array_map(static fn($route) => $route->getPath(), $routes->all());
+            $this->assertContains($path, $paths);
+        }
+    }
 }

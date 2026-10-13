@@ -1,6 +1,6 @@
 <?php
 
-namespace phpMyFAQ\Controller;
+namespace phpMyFAQ\Controller\Frontend;
 
 use phpMyFAQ\Strings;
 use phpMyFAQ\Translation;
