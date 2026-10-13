@@ -16,9 +16,14 @@ final class TurnstileHelperTest extends TestCase
     {
         $helper = new TurnstileHelper($this->createConfiguration(true, '0x4AAAAAAFVnDcG63T6jyXKV'));
 
-        $html = $helper->renderCaptcha($this->createStub(CaptchaInterface::class), 'ask', 'Captcha');
+        $html = $helper->renderCaptcha(
+            $this->createStub(CaptchaInterface::class),
+            'ask',
+            'Please enter the captcha code',
+        );
 
-        self::assertStringContainsString('<label class="col-sm-3 col-form-label">Captcha</label>', $html);
+        self::assertStringNotContainsString('Please enter the captcha code', $html);
+        self::assertStringContainsString('<div class="col-sm-9 offset-sm-3">', $html);
         self::assertStringContainsString(
             '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>',
             $html,

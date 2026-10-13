@@ -25,7 +25,8 @@ use phpMyFAQ\Helper\AbstractHelper;
 
 /**
  * Renders the Turnstile widget. The widget adds the token as the hidden "cf-turnstile-response"
- * field to the surrounding form.
+ * field to the surrounding form. It needs no label: there is no code to enter, and the widget
+ * labels itself.
  */
 class TurnstileHelper extends AbstractHelper implements CaptchaHelperInterface
 {
@@ -47,8 +48,7 @@ class TurnstileHelper extends AbstractHelper implements CaptchaHelperInterface
         }
 
         $html = '<div class="row mb-2">';
-        $html .= sprintf('<label class="col-sm-3 col-form-label">%s</label>', $label);
-        $html .= '    <div class="col-sm-9">';
+        $html .= '    <div class="col-sm-9 offset-sm-3">';
         $html .= sprintf('        <script src="%s" async defer></script>', self::SCRIPT_URL);
         $html .= sprintf('<div class="cf-turnstile" data-sitekey="%s"></div>', htmlspecialchars(
             (string) $this->configuration->get(item: 'security.turnstileSiteKey'),
