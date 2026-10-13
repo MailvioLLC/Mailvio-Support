@@ -22,6 +22,7 @@ namespace phpMyFAQ\Controller\Frontend;
 use phpMyFAQ\Captcha\CaptchaInterface;
 use phpMyFAQ\Captcha\Helper\CaptchaHelperInterface;
 use phpMyFAQ\Category;
+use phpMyFAQ\Controller\Frontend\Api\SupportTicketController;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Enums\PermissionType;
 use phpMyFAQ\Faq\QuestionService;
@@ -143,6 +144,23 @@ final class QuestionsController extends AbstractFrontController
             ),
             'msgNewContentSubmit' => Translation::get(key: 'msgNewContentSubmit'),
             'csrfTokenAskQuestion' => Token::getInstance($this->session)->getTokenString('ask-question'),
+            'msgAskTabPublicQuestion' => Translation::get(key: 'msgAskTabPublicQuestion'),
+            'msgAskTabSupportTicket' => Translation::get(key: 'msgAskTabSupportTicket'),
+            'msgAskPublicQuestionIntro' => Translation::get(key: 'msgAskPublicQuestionIntro'),
+            'msgAskPublicQuestionTicketHint' => Translation::get(key: 'msgAskPublicQuestionTicketHint'),
+            'msgSupportTicketIntro' => Translation::get(key: 'msgSupportTicketIntro'),
+            'msgSupportTicketName' => Translation::get(key: 'msgSupportTicketName'),
+            'msgSupportTicketEmail' => Translation::get(key: 'msgSupportTicketEmail'),
+            'msgSupportTicketSubject' => Translation::get(key: 'msgSupportTicketSubject'),
+            'msgSupportTicketMessage' => Translation::get(key: 'msgSupportTicketMessage'),
+            'msgSupportTicketSubmit' => Translation::get(key: 'msgSupportTicketSubmit'),
+            'csrfTokenSupportTicket' => Token::getInstance($this->session)->getTokenString(SupportTicketController::CSRF_PAGE),
+            'supportTicketCaptchaFieldset' => $this->captchaHelper->renderCaptcha(
+                $this->captcha,
+                'support-ticket',
+                Translation::getString(key: 'msgCaptcha'),
+                $this->currentUser->isLoggedIn(),
+            ),
             'noCategories' => $questionData['noCategories'],
             'msgFormDisabledDueToMissingCategories' => Translation::get(key: 'msgFormDisabledDueToMissingCategories'),
         ];

@@ -9,3 +9,4 @@ export * from './register';
 export * from './share';
 export * from './user';
 export * from './voting';
+export * from './support-ticket';

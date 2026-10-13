@@ -16,6 +16,7 @@
 import Masonry from 'masonry-layout';
 import { handleCategoryTree } from './category';
 import { handleContactForm } from './contact';
+import { handleAskTabs, handleSupportTicket } from './support-ticket';
 import {
   handleAddFaq,
   handleComments,
@@ -97,6 +98,8 @@ document.addEventListener('DOMContentLoaded', (): void => {
 
   // Handle Adds a Question
   handleQuestion();
+  handleAskTabs();
+  handleSupportTicket();
 
   // Handle Bookmarks
   handleDeleteBookmarks();

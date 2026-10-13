@@ -2,92 +2,183 @@
 
 {% block content %}
 <section class="col-12">
-  {% if noCategories == true %}
-  <div class="alert alert-danger">{{ msgFormDisabledDueToMissingCategories|raw }}</div>
-  {% else %}
   {% if id1_label is defined %}
   <h2 class="mb-4 border-bottom">{{ id1_label }}</h2>
   {% endif %}
-  <div id="questionForm">
-    {% if id2_label is defined %}
-    <p>{{ id2_label }}</p>
-    {% endif %}
-  </div>
 
-  <div class="row mb-2">
-    <div class="col">
-      <div class="spinner-border text-primary d-none" id="loader" role="status">
-        <span class="visually-hidden">Loading...</span>
+  <ul class="nav nav-tabs mb-4" id="pmf-ask-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="pmf-tab-public-question" data-bs-toggle="tab"
+              data-bs-target="#public-question" type="button" role="tab" aria-controls="public-question"
+              aria-selected="true">
+        <i class="bi bi-globe2 me-1" aria-hidden="true"></i>{{ msgAskTabPublicQuestion }}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pmf-tab-support-ticket" data-bs-toggle="tab" data-bs-target="#support-ticket"
+              type="button" role="tab" aria-controls="support-ticket" aria-selected="false">
+        <i class="bi bi-envelope me-1" aria-hidden="true"></i>{{ msgAskTabSupportTicket }}
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="public-question" role="tabpanel" aria-labelledby="pmf-tab-public-question"
+         tabindex="0">
+      {% if noCategories == true %}
+      <div class="alert alert-danger">{{ msgFormDisabledDueToMissingCategories|raw }}</div>
+      {% else %}
+      <div class="alert alert-info d-flex align-items-start" role="note">
+        <i class="bi bi-eye me-2 mt-1" aria-hidden="true"></i>
+        <div>
+          {{ msgAskPublicQuestionIntro }}
+          <a href="#support-ticket" class="pmf-open-support-ticket alert-link">{{ msgAskPublicQuestionTicketHint }}</a>
+        </div>
       </div>
+
+      <div id="questionForm">
+        {% if id2_label is defined %}
+        <p>{{ id2_label }}</p>
+        {% endif %}
+      </div>
+
+      <div class="row mb-2">
+        <div class="col">
+          <div class="spinner-border text-primary d-none" id="loader" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint-search-suggestion d-none">{{ msgMatchingQuestions }}</p>
+      <div id="pmf-question-response"></div>
+
+      <p class="hint-search-suggestion d-none">{{ msgFinishSubmission }}</p>
+
+      <form id="pmf-question-form" action="#" method="post" class="needs-validation" novalidate>
+        <input type="hidden" name="lang" id="lang" value="{{ lang }}">
+        <input type="hidden" name="pmf-csrf-token" id="pmf-csrf-token" value="{{ csrfTokenAskQuestion }}">
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="name">
+            {{ id3_label }}:<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <input type="text" class="form-control" name="name" id="name" value="{{ defaultContentName }}"
+                   autocomplete="name" required>
+          </div>
+        </div>
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="email">
+            {{ id4_label }}:<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <input type="email" class="form-control" name="email" id="email" value="{{ defaultContentMail }}"
+                   autocomplete="email" required>
+          </div>
+        </div>
+
+        {% if id5_label is defined %}
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="category">
+            {{ id5_label }}:{% if id5_required == 'required' %}<span class="pmf-required-asterisk"> *</span>{% endif %}
+          </label>
+          <div class="col-sm-9">
+            <select name="category" class="form-select" id="category" {{ id5_required }}>
+              {% for cat in categories %}
+                {% set indent = '...' | repeat(cat.indent) %}
+                <option value="{{ cat.id }}" {% if cat.id in categories %}selected{% endif %}>
+                  {{ indent }} {{ cat.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="question">
+            {{ id6_label }}:<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <textarea class="form-control" cols="45" rows="5" name="question" id="question" required></textarea>
+          </div>
+        </div>
+
+        {{ captchaFieldset|raw }}
+
+        <div class="row">
+          <div class="col-sm-12 text-end">
+            <button class="btn btn-primary btn-lg" type="submit" id="pmf-submit-question" data-pmf-form="ask-question">
+              {{ msgNewContentSubmit }}
+            </button>
+          </div>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="support-ticket" role="tabpanel" aria-labelledby="pmf-tab-support-ticket" tabindex="0">
+      <div class="alert alert-info d-flex align-items-start" role="note">
+        <i class="bi bi-lock me-2 mt-1" aria-hidden="true"></i>
+        <div>{{ msgSupportTicketIntro }}</div>
+      </div>
+
+      <div id="pmf-support-ticket-response"></div>
+
+      <form id="pmf-support-ticket-form" action="#" method="post" class="needs-validation" novalidate>
+        <input type="hidden" name="pmf-csrf-token" value="{{ csrfTokenSupportTicket }}">
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="ticket-name">
+            {{ msgSupportTicketName }}:<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <input type="text" class="form-control" name="name" id="ticket-name" value="{{ defaultContentName }}"
+                   autocomplete="name" required>
+          </div>
+        </div>
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="ticket-email">
+            {{ msgSupportTicketEmail }}:<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <input type="email" class="form-control" name="email" id="ticket-email" value="{{ defaultContentMail }}"
+                   autocomplete="email" required>
+          </div>
+        </div>
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="ticket-subject">
+            {{ msgSupportTicketSubject }}:<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <input type="text" class="form-control" name="subject" id="ticket-subject" maxlength="200" required>
+          </div>
+        </div>
+
+        <div class="row mb-2">
+          <label class="col-sm-3 col-form-label" for="ticket-message">
+            {{ msgSupportTicketMessage }}<span class="pmf-required-asterisk"> *</span>
+          </label>
+          <div class="col-sm-9">
+            <textarea class="form-control" rows="7" name="message" id="ticket-message" required></textarea>
+          </div>
+        </div>
+
+        {{ supportTicketCaptchaFieldset|raw }}
+
+        <div class="row">
+          <div class="col-sm-12 text-end">
+            <button class="btn btn-primary btn-lg" type="submit" id="pmf-submit-support-ticket">
+              {{ msgSupportTicketSubmit }}
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
-
-  <p class="hint-search-suggestion d-none">{{ msgMatchingQuestions }}</p>
-  <div id="pmf-question-response"></div>
-
-  <p class="hint-search-suggestion d-none">{{ msgFinishSubmission }}</p>
-
-  <form id="pmf-question-form" action="#" method="post" class="needs-validation" novalidate>
-    <input type="hidden" name="lang" id="lang" value="{{ lang }}">
-    <input type="hidden" name="pmf-csrf-token" id="pmf-csrf-token" value="{{ csrfTokenAskQuestion }}">
-
-    <div class="row mb-2">
-      <label class="col-sm-3 col-form-label" for="name">
-        {{ id3_label }}:<span class="pmf-required-asterisk"> *</span>
-      </label>
-      <div class="col-sm-9">
-        <input type="text" class="form-control" name="name" id="name" value="{{ defaultContentName }}"
-               autocomplete="name" required>
-      </div>
-    </div>
-
-    <div class="row mb-2">
-      <label class="col-sm-3 col-form-label" for="email">
-        {{ id4_label }}:<span class="pmf-required-asterisk"> *</span>
-      </label>
-      <div class="col-sm-9">
-        <input type="email" class="form-control" name="email" id="email" value="{{ defaultContentMail }}"
-               autocomplete="email" required>
-      </div>
-    </div>
-
-    {% if id5_label is defined %}
-    <div class="row mb-2">
-      <label class="col-sm-3 col-form-label" for="category">
-        {{ id5_label }}:{% if id5_required == 'required' %}<span class="pmf-required-asterisk"> *</span>{% endif %}
-      </label>
-      <div class="col-sm-9">
-        <select name="category" class="form-select" id="category" {{ id5_required }}>
-          {% for cat in categories %}
-            {% set indent = '...' | repeat(cat.indent) %}
-            <option value="{{ cat.id }}" {% if cat.id in categories %}selected{% endif %}>
-              {{ indent }} {{ cat.name }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-    {% endif %}
-
-    <div class="row mb-2">
-      <label class="col-sm-3 col-form-label" for="question">
-        {{ id6_label }}:<span class="pmf-required-asterisk"> *</span>
-      </label>
-      <div class="col-sm-9">
-        <textarea class="form-control" cols="45" rows="5" name="question" id="question" required></textarea>
-      </div>
-    </div>
-
-    {{ captchaFieldset|raw }}
-
-    <div class="row">
-      <div class="col-sm-12 text-end">
-        <button class="btn btn-primary btn-lg" type="submit" id="pmf-submit-question" data-pmf-form="ask-question">
-          {{ msgNewContentSubmit }}
-        </button>
-      </div>
-    </div>
-  </form>
-  {% endif %}
 </section>
 {% endblock %}

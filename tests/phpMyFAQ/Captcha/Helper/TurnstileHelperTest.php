@@ -34,6 +34,18 @@ final class TurnstileHelperTest extends TestCase
         );
     }
 
+    public function testLoadsTheScriptOnlyOnceForSeveralWidgetsOnOnePage(): void
+    {
+        $helper = new TurnstileHelper($this->createConfiguration(true, 'site-key'));
+        $captcha = $this->createStub(CaptchaInterface::class);
+
+        $html =
+            $helper->renderCaptcha($captcha, 'ask', 'Captcha') . $helper->renderCaptcha($captcha, 'ticket', 'Captcha');
+
+        self::assertSame(1, substr_count($html, TurnstileHelper::SCRIPT_URL));
+        self::assertSame(2, substr_count($html, 'class="cf-turnstile"'));
+    }
+
     public function testEscapesTheSiteKey(): void
     {
         $helper = new TurnstileHelper($this->createConfiguration(true, '"><script>alert(1)</script>'));

@@ -124,6 +124,7 @@ use phpMyFAQ\Controller\Frontend\Api\FaqController as FrontendApiFaqController;
 use phpMyFAQ\Controller\Frontend\Api\PopularSearchesController as FrontendApiPopularSearchesController;
 use phpMyFAQ\Controller\Frontend\Api\PushController as FrontendApiPushController;
 use phpMyFAQ\Controller\Frontend\Api\QuestionController as FrontendApiQuestionController;
+use phpMyFAQ\Controller\Frontend\Api\SupportTicketController as FrontendApiSupportTicketController;
 use phpMyFAQ\Controller\Frontend\Api\UnauthorizedUserController as FrontendApiUnauthorizedUserController;
 use phpMyFAQ\Controller\Frontend\Api\UserController as FrontendApiUserController;
 use phpMyFAQ\Controller\Frontend\Api\VotingController as FrontendApiVotingController;
@@ -864,6 +865,10 @@ return static function (ContainerConfigurator $container): void {
         service('phpmyfaq.question'),
         service('phpmyfaq.notification'),
         service('phpmyfaq.question.history'),
+        service('phpmyfaq.http.rate-limiter'),
+    ]);
+    $services->set(FrontendApiSupportTicketController::class, FrontendApiSupportTicketController::class)->args([
+        service('phpmyfaq.mail'),
         service('phpmyfaq.http.rate-limiter'),
     ]);
     $services->set(FrontendApiUnauthorizedUserController::class, FrontendApiUnauthorizedUserController::class)->args([

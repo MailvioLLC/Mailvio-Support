@@ -32,6 +32,9 @@ class TurnstileHelper extends AbstractHelper implements CaptchaHelperInterface
 {
     public const string SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 
+    /** A page with several forms renders several widgets, but must load the script only once */
+    private bool $scriptRendered = false;
+
     public function __construct(
         protected Configuration $configuration,
     ) {
@@ -49,7 +52,11 @@ class TurnstileHelper extends AbstractHelper implements CaptchaHelperInterface
 
         $html = '<div class="row mb-2">';
         $html .= '    <div class="col-sm-9 offset-sm-3">';
-        $html .= sprintf('        <script src="%s" async defer></script>', self::SCRIPT_URL);
+        if (!$this->scriptRendered) {
+            $html .= sprintf('        <script src="%s" async defer></script>', self::SCRIPT_URL);
+            $this->scriptRendered = true;
+        }
+
         $html .= sprintf('<div class="cf-turnstile" data-sitekey="%s"></div>', htmlspecialchars(
             (string) $this->configuration->get(item: 'security.turnstileSiteKey'),
             ENT_QUOTES,

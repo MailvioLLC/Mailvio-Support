@@ -1911,5 +1911,18 @@ $LANG_CONF['upgrade.allowUnverifiedNightly'] = ['checkbox', 'Allow installing ni
 $PMF_LANG['msgTwofactorLockedOut'] = 'Too many wrong codes. Please try again later.';
 $PMF_LANG['msgAskQuestionNavigation'] = 'Ask a question';
 $PMF_LANG['msgAskThxAwaitingReview'] = 'Thank you for your question! It is not public yet: our team reviews every question before it is published on this Knowledge Center.';
+$PMF_LANG['msgAskTabPublicQuestion'] = 'Ask a public question';
+$PMF_LANG['msgAskTabSupportTicket'] = 'Open a support ticket';
+$PMF_LANG['msgAskPublicQuestionIntro'] = 'Questions asked here are public. Once our team has reviewed and approved your question, it is published on this Knowledge Center together with your name and email address, so other users can find the answer too.';
+$PMF_LANG['msgAskPublicQuestionTicketHint'] = 'Need help with your own account? Open a support ticket instead.';
+$PMF_LANG['msgSupportTicketIntro'] = 'Need help with your own account? Send a private message to our support team and we will reply to your email address. Nothing you send here is published.';
+$PMF_LANG['msgSupportTicketName'] = 'Name';
+$PMF_LANG['msgSupportTicketEmail'] = 'Mailvio account email';
+$PMF_LANG['msgSupportTicketSubject'] = 'Subject';
+$PMF_LANG['msgSupportTicketMessage'] = 'How can we help you?';
+$PMF_LANG['msgSupportTicketSubmit'] = 'Send to support';
+$PMF_LANG['msgSupportTicketSent'] = 'Thank you! Your message has been sent to our support team. We will reply to your email address.';
+$PMF_LANG['msgSupportTicketSendFailed'] = 'Your message could not be sent. Please try again later or email us at %s.';
+$PMF_LANG['msgSupportTicketMissingFields'] = 'Please fill in all fields with a valid email address.';
 
 return $PMF_LANG;

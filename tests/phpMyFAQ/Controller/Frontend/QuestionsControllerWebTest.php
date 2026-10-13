@@ -77,4 +77,22 @@ final class QuestionsControllerWebTest extends ControllerWebTestCase
         self::assertResponseIsSuccessful($response);
         self::assertResponseContains('missing configured categories', $response);
     }
+
+    public function testAskQuestionPageOffersAPublicQuestionAndAPrivateSupportTicket(): void
+    {
+        $this->overrideConfigurationValues([
+            'main.enableUserTracking' => false,
+            'records.allowQuestionsForGuests' => 1,
+        ]);
+
+        $response = $this->requestPublic('GET', '/add-question.html');
+
+        self::assertResponseIsSuccessful($response);
+        self::assertResponseContains('Ask a public question', $response);
+        self::assertResponseContains('Open a support ticket', $response);
+        self::assertResponseContains('<form id="pmf-support-ticket-form"', $response);
+        self::assertResponseContains('Mailvio account email', $response);
+        self::assertResponseContains('How can we help you?', $response);
+        self::assertResponseContains('Nothing you send here is published.', $response);
+    }
 }
