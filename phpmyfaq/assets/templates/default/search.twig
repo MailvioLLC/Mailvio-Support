@@ -72,7 +72,7 @@
             {% else %}
             <i class="bi bi-question-circle-o"></i>
             {% endif %}
-            <a title="Test" href="{{ result.url }}">{{ result.question | raw }}</a>
+            <a href="{{ result.url }}">{{ result.question | raw }}</a>
             <br>
             <small class="small"><i class="bi bi-chat-dots"></i> {{ result.answerPreview | raw }}...</small>
           </li>

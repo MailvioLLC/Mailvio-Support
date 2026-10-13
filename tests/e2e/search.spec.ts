@@ -12,6 +12,8 @@ test.describe('Search (DE + EN)', () => {
 
     await expect(page.locator('li.pmf-search-result').first()).toBeVisible();
     await expect(page.getByRole('link', { name: faq.en }).first()).toBeVisible();
+    // The result link is labelled by its text; a leftover title="Test" showed as tooltip
+    await expect(page.locator('li.pmf-search-result a[title]')).toHaveCount(0);
   });
 
   test('German search finds the seeded FAQ', async ({ page }) => {
