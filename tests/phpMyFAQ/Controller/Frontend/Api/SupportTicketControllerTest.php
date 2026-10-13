@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace phpMyFAQ\Controller\Frontend\Api;
 
+use phpMyFAQ\Alert\AlertNotifier;
 use phpMyFAQ\Mail;
 use phpMyFAQ\Session\Token;
 use phpMyFAQ\User\CurrentUser;
@@ -41,9 +42,11 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         $mailer->expects($this->once())->method('setReplyTo')->with('jane@example.com', 'Jane Doe');
         $mailer->expects($this->once())->method('addTo')->with('support@example.com');
         $mailer->expects($this->once())->method('addCc')->with('jane@example.com', 'Jane Doe');
+        $alertNotifier = $this->createMock(AlertNotifier::class);
+        $alertNotifier->expects($this->never())->method('alert');
         $mailer->expects($this->once())->method('send')->with(true);
 
-        $response = $this->send($this->createController($mailer), self::VALID_TICKET);
+        $response = $this->send($this->createController($mailer, $alertNotifier), self::VALID_TICKET);
 
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
         self::assertSame(
@@ -171,6 +174,56 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         );
     }
 
+    public function testAlertsTheTeamWhenTheMailServerRefusesTheTicket(): void
+    {
+        $mailer = $this->createStub(Mail::class);
+        $mailer
+            ->method('send')
+            ->willThrowException(
+                new TransportException(
+                    'Expected response code "250" but got code "500", with message "500 No Valid Mailserver Found".',
+                ),
+            );
+        $alertNotifier = $this->createMock(AlertNotifier::class);
+        $alertNotifier
+            ->expects($this->once())
+            ->method('alert')
+            ->with(SupportTicketController::ALERT_TOPIC, self::logicalAnd(
+                self::stringContains('A support ticket could not be sent to support@example.com'),
+                self::stringContains('500 No Valid Mailserver Found'),
+                self::stringContains(
+                    "```text\nName: Jane Doe\nEmail: jane@example.com\nSubject: Campaign stuck in sending",
+                ),
+                self::stringContains('My campaign has been sending for two days.'),
+            ));
+
+        $this->send($this->createController($mailer, $alertNotifier), self::VALID_TICKET);
+    }
+
+    public function testTheVisitorCannotBreakOutOfTheAlertCodeBlock(): void
+    {
+        $mailer = $this->createStub(Mail::class);
+        $mailer->method('send')->willThrowException(new TransportException('Connection refused'));
+        $alertNotifier = $this->createMock(AlertNotifier::class);
+        $alertNotifier
+            ->expects($this->once())
+            ->method('alert')
+            ->with(
+                self::anything(),
+                self::callback(
+                    static fn(string $alert): bool => (
+                        substr_count($alert, '```') === 2
+                        && str_contains($alert, "'''\n@**all**")
+                    ),
+                ),
+            );
+
+        $this->send($this->createController($mailer, $alertNotifier), [
+            ...self::VALID_TICKET,
+            'message' => "```\n@**all**",
+        ]);
+    }
+
     public function testLimitsTheNumberOfTicketsPerVisitor(): void
     {
         $mailer = $this->createStub(Mail::class);
@@ -186,9 +239,9 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         );
     }
 
-    private function createController(Mail $mailer): SupportTicketController
+    private function createController(Mail $mailer, ?AlertNotifier $alertNotifier = null): SupportTicketController
     {
-        return new SupportTicketController($mailer);
+        return new SupportTicketController($mailer, $alertNotifier ?? $this->createStub(AlertNotifier::class));
     }
 
     /**

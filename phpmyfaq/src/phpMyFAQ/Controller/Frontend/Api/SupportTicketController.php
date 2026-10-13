@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 namespace phpMyFAQ\Controller\Frontend\Api;
 
+use phpMyFAQ\Alert\AlertNotifier;
 use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Http\RateLimiter;
@@ -34,11 +35,14 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Unlike a public question, a support ticket is never stored or published: it is mailed to the
- * administration address right away, with the visitor as reply-to address and in copy.
+ * administration address right away, with the visitor as reply-to address and in copy. When the mail
+ * server refuses it, the team gets an alert.
  */
 final class SupportTicketController extends AbstractController
 {
     public const string CSRF_PAGE = 'support-ticket';
+
+    public const string ALERT_TOPIC = 'Support site > Support tickets';
 
     private const int CREATE_LIMIT_PER_IP = 5;
 
@@ -48,6 +52,7 @@ final class SupportTicketController extends AbstractController
 
     public function __construct(
         private readonly Mail $mailer,
+        private readonly AlertNotifier $alertNotifier,
         ?RateLimiter $rateLimiter = null,
     ) {
         $this->rateLimiter = $rateLimiter ?? new RateLimiter();
@@ -107,6 +112,13 @@ final class SupportTicketController extends AbstractController
             $this->mailer->send(forceSynchronousDelivery: true);
         } catch (Exception|TransportExceptionInterface $exception) {
             $this->configuration->getLogger()->error('Sending a support ticket failed: ' . $exception->getMessage());
+            $this->alertNotifier->alert(self::ALERT_TOPIC, $this->renderAlert(
+                $exception->getMessage(),
+                $name,
+                $email,
+                $subject,
+                $message,
+            ));
 
             // Not 502: Cloudflare replaces the body of a 502 with its own error page
             return $this->json(['error' => sprintf(
@@ -126,6 +138,25 @@ final class SupportTicketController extends AbstractController
         return trim(
             preg_replace(pattern: '/[\r\n]+/', replacement: ' ', subject: is_scalar($value) ? (string) $value : '')
             ?? '',
+        );
+    }
+
+    /**
+     * The visitor's input goes into a code block, so it cannot mention people or format the alert.
+     */
+    private function renderAlert(string $error, string $name, string $email, string $subject, string $message): string
+    {
+        $codeBlock = static fn(string $value): string => str_replace(search: '```', replace: "'''", subject: $value);
+
+        return sprintf(
+            ":warning: A support ticket could not be sent to %s. The visitor was asked to email us instead.\n\n"
+            . "**Mail server error:** %s\n\n```text\nName: %s\nEmail: %s\nSubject: %s\n\n%s\n```",
+            $this->configuration->getAdminEmail(),
+            $codeBlock($error),
+            $codeBlock($name),
+            $codeBlock($email),
+            $codeBlock($subject),
+            $codeBlock($message),
         );
     }
 

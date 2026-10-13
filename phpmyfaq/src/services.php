@@ -27,6 +27,7 @@ use phpMyFAQ\Administration\RatingStatistics;
 use phpMyFAQ\Administration\RecentUsers;
 use phpMyFAQ\Administration\RemoteApiClient;
 use phpMyFAQ\Administration\Session as AdminSession;
+use phpMyFAQ\Alert\ZulipAlertNotifier;
 use phpMyFAQ\Api\MetaService;
 use phpMyFAQ\Api\OAuthDiscoveryService;
 use phpMyFAQ\Attachment\AttachmentCollection;
@@ -701,6 +702,14 @@ return static function (ContainerConfigurator $container): void {
             'timeout' => 30,
         ]]);
 
+    $services
+        ->set('phpmyfaq.alert-notifier', ZulipAlertNotifier::class)
+        ->factory([ZulipAlertNotifier::class, 'fromEnvironment'])
+        ->args([
+            service('phpmyfaq.http-client'),
+            service('phpmyfaq.configuration'),
+        ]);
+
     // Translation Provider (factory-created)
     $services
         ->set('phpmyfaq.translation.provider', TranslationProviderInterface::class)
@@ -869,6 +878,7 @@ return static function (ContainerConfigurator $container): void {
     ]);
     $services->set(FrontendApiSupportTicketController::class, FrontendApiSupportTicketController::class)->args([
         service('phpmyfaq.mail'),
+        service('phpmyfaq.alert-notifier'),
         service('phpmyfaq.http.rate-limiter'),
     ]);
     $services->set(FrontendApiUnauthorizedUserController::class, FrontendApiUnauthorizedUserController::class)->args([
