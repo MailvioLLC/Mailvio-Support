@@ -646,6 +646,7 @@ return static function (ContainerConfigurator $container): void {
         service('phpmyfaq.configuration'),
         service('phpmyfaq.faq.statistics'),
         service('phpmyfaq.custom-page'),
+        service('phpmyfaq.category'),
     ]);
 
     $services

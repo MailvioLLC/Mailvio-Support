@@ -19,10 +19,12 @@ declare(strict_types=1);
 
 namespace phpMyFAQ\Seo;
 
+use phpMyFAQ\Category;
 use phpMyFAQ\Configuration;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\CustomPage;
 use phpMyFAQ\Faq\Statistics as FaqStatistics;
+use phpMyFAQ\Link\Util\TitleSlugifier;
 use phpMyFAQ\Twig\TwigWrapper;
 
 class SitemapXmlService
@@ -33,6 +35,7 @@ class SitemapXmlService
         private readonly Configuration $configuration,
         private readonly FaqStatistics $faqStatistics,
         private readonly CustomPage $customPage,
+        private readonly Category $category,
     ) {
     }
 
@@ -42,9 +45,9 @@ class SitemapXmlService
     }
 
     /**
-     * Collects all URLs for the sitemap from FAQs and active custom pages.
+     * Collects all URLs for the sitemap from FAQs, public categories and active custom pages.
      *
-     * @return array<int, array{loc: string, lastmod: string, priority: string}>
+     * @return array<int, array{loc: string, lastmod?: string, priority: string}>
      */
     public function collectUrls(): array
     {
@@ -56,6 +59,21 @@ class SitemapXmlService
                 'loc' => $item['url'],
                 'lastmod' => $item['date'],
                 'priority' => '1.00',
+            ];
+        }
+
+        // Only categories a guest can open: crawlers see the site as a guest
+        $categories = $this->category->setUser(-1)->setGroups([-1])->getOrderedCategories();
+
+        foreach ($categories as $id => $category) {
+            $urls[] = [
+                'loc' => sprintf(
+                    '%scategory/%d/%s.html',
+                    $this->configuration->getDefaultUrl(),
+                    $id,
+                    TitleSlugifier::slug((string) ($category['name'] ?? '')),
+                ),
+                'priority' => '0.80',
             ];
         }
 

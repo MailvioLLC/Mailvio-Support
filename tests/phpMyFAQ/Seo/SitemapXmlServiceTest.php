@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace phpMyFAQ\Seo;
 
+use phpMyFAQ\Category;
 use phpMyFAQ\Configuration;
 use phpMyFAQ\CustomPage;
 use phpMyFAQ\Faq\Statistics as FaqStatistics;
@@ -17,6 +18,8 @@ class SitemapXmlServiceTest extends TestCase
 
     private CustomPage $customPage;
 
+    private Category $category;
+
     private SitemapXmlService $service;
 
     protected function setUp(): void
@@ -26,8 +29,16 @@ class SitemapXmlServiceTest extends TestCase
         $this->configuration = $this->createStub(Configuration::class);
         $this->faqStatistics = $this->createStub(FaqStatistics::class);
         $this->customPage = $this->createStub(CustomPage::class);
+        $this->category = $this->createStub(Category::class);
+        $this->category->method('setUser')->willReturnSelf();
+        $this->category->method('setGroups')->willReturnSelf();
 
-        $this->service = new SitemapXmlService($this->configuration, $this->faqStatistics, $this->customPage);
+        $this->service = new SitemapXmlService(
+            $this->configuration,
+            $this->faqStatistics,
+            $this->customPage,
+            $this->category,
+        );
     }
 
     public function testIsEnabledReturnsTrueWhenConfigEnabled(): void
@@ -74,6 +85,35 @@ class SitemapXmlServiceTest extends TestCase
         $this->assertSame('https://example.com/faq/1', $urls[0]['loc']);
         $this->assertSame('1.00', $urls[0]['priority']);
         $this->assertSame('2026-01-01T00:00:00+00:00', $urls[0]['lastmod']);
+    }
+
+    public function testCollectUrlsListsTheCategoriesAGuestCanOpen(): void
+    {
+        $this->faqStatistics->method('getTopTenData')->willReturn([]);
+        $this->customPage->method('getAllPages')->willReturn([]);
+        $this->configuration->method('getDefaultUrl')->willReturn('https://example.com/');
+
+        $category = $this->createMock(Category::class);
+        $category->expects($this->once())->method('setUser')->with(-1)->willReturnSelf();
+        $category->expects($this->once())->method('setGroups')->with([-1])->willReturnSelf();
+        $category
+            ->expects($this->once())
+            ->method('getOrderedCategories')
+            ->willReturn([
+                3 => ['id' => 3, 'name' => 'Getting Started with Mailvio', 'parent_id' => 0],
+                7 => ['id' => 7, 'name' => 'Email Templates', 'parent_id' => 0],
+            ]);
+        $service = new SitemapXmlService($this->configuration, $this->faqStatistics, $this->customPage, $category);
+
+        $urls = $service->collectUrls();
+
+        $this->assertSame(
+            [
+                ['loc' => 'https://example.com/category/3/getting-started-with-mailvio.html', 'priority' => '0.80'],
+                ['loc' => 'https://example.com/category/7/email-templates.html', 'priority' => '0.80'],
+            ],
+            $urls,
+        );
     }
 
     public function testCollectUrlsFiltersInactiveCustomPages(): void
