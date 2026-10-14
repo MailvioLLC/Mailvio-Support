@@ -1925,5 +1925,6 @@ $PMF_LANG['msgSupportTicketSent'] = 'Thank you! Your message has been sent to ou
 $PMF_LANG['msgSupportTicketSendFailed'] = 'We couldn\'t send your message. Please email us at %s instead while we work on fixing this.';
 $PMF_LANG['msgSupportTicketMissingFields'] = 'Please fill in all fields with a valid email address.';
 $PMF_LANG['msgLogInToComment'] = 'Log in to comment on this FAQ';
+$PMF_LANG['msgCaptchaChallengeFailed'] = 'We couldn\'t confirm you\'re human. Please complete the security check and try again.';
 
 return $PMF_LANG;

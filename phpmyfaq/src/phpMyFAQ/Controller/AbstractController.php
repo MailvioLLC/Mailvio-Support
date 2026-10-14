@@ -23,6 +23,7 @@ use JsonException;
 use LogicException;
 use OpenApi\Attributes as OA;
 use phpMyFAQ\Attachment\AttachmentFactory;
+use phpMyFAQ\Captcha\BuiltinCaptcha;
 use phpMyFAQ\Captcha\Captcha;
 use phpMyFAQ\Captcha\GoogleRecaptcha;
 use phpMyFAQ\Captcha\Turnstile;
@@ -38,6 +39,7 @@ use phpMyFAQ\Form\FormsServiceProvider;
 use phpMyFAQ\Http\RateLimiter;
 use phpMyFAQ\Http\SecurityEventLogger;
 use phpMyFAQ\Session\Token;
+use phpMyFAQ\Translation;
 use phpMyFAQ\Twig\TwigWrapper;
 use phpMyFAQ\User\CurrentUser;
 use Symfony\Component\Config\FileLocator;
@@ -624,6 +626,18 @@ abstract class AbstractController
         $code = Filter::filterVar($data->{$field} ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
 
         return $captcha->checkCaptchaCode((string) $code);
+    }
+
+    /**
+     * Tells the visitor why the captcha check failed: only the builtin captcha has a code to enter
+     */
+    protected function captchaFailedMessage(): string
+    {
+        $captcha = Captcha::getInstance($this->configuration);
+
+        return Translation::getString(
+            key: $captcha instanceof BuiltinCaptcha ? 'msgCaptcha' : 'msgCaptchaChallengeFailed',
+        );
     }
 
     public function isApiEnabled(): bool

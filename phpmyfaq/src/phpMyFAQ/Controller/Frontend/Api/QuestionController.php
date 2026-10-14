@@ -168,7 +168,7 @@ final class QuestionController extends AbstractController
 
         $captchaRequired = $storeNow !== 'now' || !$captchaVerifiedForSmartAnswer;
         if ($captchaRequired && !$this->captchaCodeIsValid($request)) {
-            return $this->json(['error' => Translation::get(key: 'msgCaptcha')], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => $this->captchaFailedMessage()], Response::HTTP_BAD_REQUEST);
         }
 
         // Check if all necessary fields are provided and not empty

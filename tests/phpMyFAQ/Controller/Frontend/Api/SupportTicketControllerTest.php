@@ -160,6 +160,28 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         self::assertSame('Please enter the captcha code', $this->payload($response)['error']);
     }
 
+    public function testAsksForTheSecurityCheckInsteadOfACodeWhenTurnstileRefusesAGuest(): void
+    {
+        $this->overrideConfigurationValues(['security.enableTurnstile' => true]);
+        $mailer = $this->createMock(Mail::class);
+        $mailer->expects($this->never())->method('send');
+
+        $guest = $this->createStub(CurrentUser::class);
+        $guest->method('isLoggedIn')->willReturn(false);
+
+        $response = $this->send(
+            $this->createController($mailer),
+            [...self::VALID_TICKET, 'cf-turnstile-response' => ''],
+            $guest,
+        );
+
+        self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+        self::assertSame(
+            "We couldn't confirm you're human. Please complete the security check and try again.",
+            $this->payload($response)['error'],
+        );
+    }
+
     public function testTellsTheVisitorWhereToWriteWhenSendingFails(): void
     {
         $mailer = $this->createStub(Mail::class);

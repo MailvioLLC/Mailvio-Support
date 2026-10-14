@@ -124,7 +124,7 @@ final class CommentController extends AbstractController
         $email = Filter::filterVar($email, FILTER_SANITIZE_SPECIAL_CHARS, '');
 
         if (!$this->captchaCodeIsValid($request)) {
-            return $this->json(['error' => Translation::get(key: 'msgCaptcha')], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => $this->captchaFailedMessage()], Response::HTTP_BAD_REQUEST);
         }
 
         // Check if user is logged in and editor is enabled
