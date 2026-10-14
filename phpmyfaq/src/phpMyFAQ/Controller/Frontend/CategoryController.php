@@ -155,11 +155,9 @@ class CategoryController extends AbstractFrontController
 
         return [
             ...$this->getHeader($request),
-            'title' => sprintf('%s - %s', $categoryHeader, $this->configuration->getTitle()),
-            'metaDescription' => sprintf(
-                Translation::getString(key: 'msgCategoryMetaDesc'),
-                $this->configuration->getTitle(),
-            ),
+            // Search results show the title and description, so lead with the category itself
+            'title' => sprintf('%s - %s', $categoryEntity->getName(), $this->configuration->getTitle()),
+            'metaDescription' => $this->buildCategoryMetaDescription($categoryEntity->getDescription()),
             'categoryHeader' => $categoryHeader,
             'isAllCategories' => false,
             'breadcrumb' => $category->getPathWithStartPage($selectedCategoryId, '/', true),
@@ -212,6 +210,23 @@ class CategoryController extends AbstractFrontController
             'subCategoryContent' => Translation::get(key: 'msgSubCategoryContent'),
             'categoryLevelUp' => '',
         ];
+    }
+
+    /**
+     * Uses the category's own description, falling back to the generic overview text without one
+     */
+    private function buildCategoryMetaDescription(?string $description): string
+    {
+        $description = trim((string) preg_replace(
+            '/\s+/u',
+            replacement: ' ',
+            subject: strip_tags((string) $description),
+        ));
+        if ($description !== '') {
+            return $description;
+        }
+
+        return sprintf(Translation::getString(key: 'msgCategoryMetaDesc'), $this->configuration->getTitle());
     }
 
     /**

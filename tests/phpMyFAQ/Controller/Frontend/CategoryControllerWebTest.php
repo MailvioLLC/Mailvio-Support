@@ -184,6 +184,33 @@ final class CategoryControllerWebTest extends ControllerWebTestCase
         self::assertResponseContains('show-categories.html', $response);
     }
 
+    public function testShowCategoryPageLeadsTheTitleAndDescriptionWithTheCategory(): void
+    {
+        $this->overrideConfigurationValues(['main.enableUserTracking' => false]);
+        $this->seedCategory(831, 'Signup Forms');
+
+        $response = $this->requestPublic('GET', '/category/831/signup-forms.html');
+
+        self::assertResponseIsSuccessful($response);
+        self::assertMatchesRegularExpression('#<title>Signup Forms - [^<]+</title>#', (string) $response->getContent());
+        self::assertResponseContains('<meta content="Signup Forms description" name="description">', $response);
+    }
+
+    public function testShowCategoryPageFallsBackToTheGenericDescriptionWithoutOne(): void
+    {
+        $this->overrideConfigurationValues(['main.enableUserTracking' => false]);
+        $this->seedCategory(832, 'No Description');
+        $this->getConfiguration('public')->getDb()->query("UPDATE faqcategories SET description = '' WHERE id = 832");
+
+        $response = $this->requestPublic('GET', '/category/832/no-description.html');
+
+        self::assertResponseIsSuccessful($response);
+        self::assertResponseContains(
+            '<meta content="Overview of all categories and topics | Category overview of',
+            $response,
+        );
+    }
+
     public function testShowCategoryPageShowsNoRecordsMessageWhenFaqsAreMissing(): void
     {
         $this->overrideConfigurationValues(['main.enableUserTracking' => false]);
