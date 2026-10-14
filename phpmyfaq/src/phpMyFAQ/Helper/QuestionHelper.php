@@ -25,7 +25,6 @@ use phpMyFAQ\Date;
 use phpMyFAQ\Language\Plurals;
 use phpMyFAQ\Link;
 use phpMyFAQ\Link\Util\TitleSlugifier;
-use phpMyFAQ\Mail;
 use phpMyFAQ\Search\SearchResultSet;
 use phpMyFAQ\Utils;
 use stdClass;
@@ -76,7 +75,6 @@ class QuestionHelper extends AbstractHelper
     public function getOpenQuestions(): stdClass
     {
         $date = new Date($this->configuration);
-        $mail = new Mail($this->configuration);
         $db = $this->configuration->getDb();
         $language = $db->escape($this->configuration->getLanguage()->getLanguage());
 
@@ -113,7 +111,6 @@ class QuestionHelper extends AbstractHelper
                 $question->id = (int) $row->id;
                 $question->lang = (string) $row->lang;
                 $question->date = $date->format(Date::createIsoDate((string) $row->created));
-                $question->email = $mail->safeEmail((string) $row->email);
                 $question->userName = (string) $row->username;
                 $question->categoryId = (int) $row->category_id;
                 $question->categoryName = $this->getCategory()->getCategoryName((int) $row->category_id);

@@ -43,9 +43,7 @@
               <tr>
                 <td class="text-break small ps-3">
                   <i class="bi bi-calendar-date me-1" aria-hidden="true"></i>{{ question.date }}<br>
-                  <a href="mailto:{{ question.email }}" title="{{ msgEmailTo }} {{ question.userName }}">
-                    <i class="bi bi-person me-1" aria-hidden="true"></i>{{ question.userName }}
-                  </a>
+                  <i class="bi bi-person me-1" aria-hidden="true"></i>{{ question.userName }}
                 </td>
 
                 <td class="text-break">
@@ -110,14 +108,14 @@
                 <div>{{ question.date }}</div>
               </div>
 
-              <a href="mailto:{{ question.email }}" class="text-decoration-none text-muted d-flex align-items-center" title="{{ msgEmailTo }} {{ question.userName }}">
+              <div class="d-flex align-items-center">
                 <div class="flex-shrink-0" style="width: 25px;">
                   <i class="bi bi-person" aria-hidden="true"></i>
                 </div>
                 <div class="text-break">
                   {{ question.userName }}
                 </div>
-              </a>
+              </div>
             </div>
 
             <div class="card-text text-break mb-3 d-flex">

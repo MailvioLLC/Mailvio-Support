@@ -65,6 +65,33 @@ final class QuestionsControllerWebTest extends ControllerWebTestCase
         self::assertResponseContains('Currently there are no pending questions.', $response);
     }
 
+    public function testOpenQuestionsPageDoesNotRevealTheAskersEmailAddress(): void
+    {
+        $this->overrideConfigurationValues(['main.enableUserTracking' => false]);
+        $db = $this->getConfiguration()->getDb();
+        $table = \phpMyFAQ\Database::getTablePrefix() . 'faqquestions';
+        $db->query(sprintf(
+            'INSERT INTO %s (id, username, email, category_id, question, created, lang, is_visible) '
+            . "VALUES (9901, 'Jane Asker', 'jane.asker@example.com', 1, 'How do I export contacts?', '%s', 'en', 'Y')",
+            $table,
+            date('YmdHis'),
+        ));
+
+        try {
+            $response = $this->requestPublic('GET', '/open-questions.html');
+        } finally {
+            $db->query(sprintf('DELETE FROM %s WHERE id = 9901', $table));
+        }
+
+        self::assertResponseIsSuccessful($response);
+        self::assertResponseContains('Jane Asker', $response);
+        self::assertResponseContains('How do I export contacts?', $response);
+        $content = (string) $response->getContent();
+        self::assertStringNotContainsString('jane.asker', $content);
+        self::assertStringNotContainsString('example.com', $content);
+        self::assertStringNotContainsString('mailto:', $content);
+    }
+
     public function testAskQuestionPageRendersWhenGuestQuestionsAreEnabled(): void
     {
         $this->overrideConfigurationValues([

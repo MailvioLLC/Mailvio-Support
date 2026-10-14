@@ -121,7 +121,8 @@ class QuestionHelperTest extends TestCase
         $question = $openQuestions->questions[0];
         $this->assertObjectHasProperty('id', $question);
         $this->assertObjectHasProperty('date', $question);
-        $this->assertObjectHasProperty('email', $question);
+        // The open questions page is public, so the asker's email address must never reach the template
+        $this->assertObjectNotHasProperty('email', $question);
         $this->assertObjectHasProperty('userName', $question);
         $this->assertObjectHasProperty('categoryId', $question);
         $this->assertObjectHasProperty('categoryName', $question);

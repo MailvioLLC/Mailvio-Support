@@ -87,7 +87,6 @@ final class QuestionsController extends AbstractFrontController
             'msgNoQuestionsAvailable' => Translation::get(key: 'msgNoQuestionsAvailable'),
             'msg2answerFAQ' => Translation::get(key: 'msg2answerFAQ'),
             'msg2answer' => Translation::get(key: 'msg2answer'),
-            'msgEmailTo' => Translation::get(key: 'msgEmailTo'),
         ]);
     }
 
