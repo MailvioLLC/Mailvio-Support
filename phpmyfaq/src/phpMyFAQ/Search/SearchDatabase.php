@@ -36,6 +36,19 @@ class SearchDatabase extends AbstractSearch implements SearchInterface
     protected const string LIKE_ESCAPE_CHARACTER = '|';
 
     /**
+     * Extra relevance for a search word found in the question or the keywords, so an FAQ
+     * about a topic outranks one that only mentions it in its answer.
+     */
+    private const int TITLE_MATCH_BOOST = 10;
+
+    private const int KEYWORDS_MATCH_BOOST = 5;
+
+    private const int PHRASE_MATCH_BOOST = 10;
+
+    /** Shorter words such as "to" or "in" appear in nearly every question */
+    private const int MIN_BOOSTED_WORD_LENGTH = 3;
+
+    /**
      * Searching database table.
      */
     protected string $table = '';
@@ -313,6 +326,55 @@ class SearchDatabase extends AbstractSearch implements SearchInterface
         }
 
         return $where;
+    }
+
+    /**
+     * Builds the score added for search words found in the question or keywords columns.
+     * Returns an empty string when neither column is searched or the term has no words.
+     */
+    protected function getTitleAndKeywordBoost(string $searchTerm): string
+    {
+        $splitWords = preg_split('/[^\p{L}\p{N}-]+/u', mb_strtolower($searchTerm), flags: PREG_SPLIT_NO_EMPTY);
+        $words = array_values(array_unique(array_filter(
+            $splitWords === false ? [] : $splitWords,
+            static fn(string $word): bool => mb_strlen(trim($word, characters: '-')) >= self::MIN_BOOSTED_WORD_LENGTH,
+        )));
+        if ($words === []) {
+            return '';
+        }
+
+        $boosts = [];
+        foreach ($this->matchingColumns as $column) {
+            $weight = match (true) {
+                str_ends_with($column, 'thema') => self::TITLE_MATCH_BOOST,
+                str_ends_with($column, 'keywords') => self::KEYWORDS_MATCH_BOOST,
+                default => 0,
+            };
+            if ($weight === 0) {
+                continue;
+            }
+
+            foreach ($words as $word) {
+                $boosts[] = $this->buildLikeBoost($column, $word, $weight);
+            }
+
+            if (count($words) > 1) {
+                $boosts[] = $this->buildLikeBoost($column, implode(' ', $words), self::PHRASE_MATCH_BOOST);
+            }
+        }
+
+        return $boosts === [] ? '' : ' + ' . implode(' + ', $boosts);
+    }
+
+    private function buildLikeBoost(string $column, string $text, int $weight): string
+    {
+        return sprintf(
+            "(%s LIKE '%%%s%%' ESCAPE '%s') * %d",
+            $column,
+            self::escapeLikeWildcards($this->configuration->getDb()->escape($text)),
+            self::LIKE_ESCAPE_CHARACTER,
+            $weight,
+        );
     }
 
     /**

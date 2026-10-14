@@ -127,9 +127,10 @@ class Mysqli extends SearchDatabase implements DatabaseInterface
     public function setRelevanceRanking(string $searchTerm): string
     {
         return sprintf(
-            "MATCH (%s) AGAINST ('%s' IN BOOLEAN MODE) as score",
+            "MATCH (%s) AGAINST ('%s' IN BOOLEAN MODE)%s as score",
             $this->getMatchingColumns(),
             $this->configuration->getDb()->escape($searchTerm),
+            $this->getTitleAndKeywordBoost($searchTerm),
         );
     }
 }

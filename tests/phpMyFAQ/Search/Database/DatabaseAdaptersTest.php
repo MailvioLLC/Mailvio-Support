@@ -177,9 +177,66 @@ class DatabaseAdaptersTest extends TestCase
         $this->configureAdapter($adapter);
 
         $this->assertSame('no-relevance-result', $adapter->search('thorsten'));
+        // The score also rewards the word in the question and the keywords, see the boost tests below
         $this->assertSame(
-            "MATCH (fd.thema, fd.content, fd.keywords) AGAINST ('thorsten' IN BOOLEAN MODE) as score",
+            "MATCH (fd.thema, fd.content, fd.keywords) AGAINST ('thorsten' IN BOOLEAN MODE)"
+            . " + (fd.thema LIKE '%thorsten%' ESCAPE '|') * 10"
+            . " + (fd.keywords LIKE '%thorsten%' ESCAPE '|') * 5 as score",
             $adapter->setRelevanceRanking('thorsten'),
+        );
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('mysqlAdaptersProvider')]
+    public function testMysqlAdaptersRankQuestionAndKeywordMatchesAboveAnswerOnlyMatches(string $adapterClass): void
+    {
+        $db = $this->createStub(DatabaseDriver::class);
+        $db->method('escape')->willReturnArgument(0);
+        $adapter = new $adapterClass($this->createConfiguration($db, ['search.enableRelevance' => true]));
+        $this->configureAdapter($adapter);
+
+        $ranking = $adapter->setRelevanceRanking('API Token');
+
+        $this->assertStringStartsWith(
+            "MATCH (fd.thema, fd.content, fd.keywords) AGAINST ('API Token' IN BOOLEAN MODE) + ",
+            $ranking,
+        );
+        $this->assertStringContainsString("(fd.thema LIKE '%api%' ESCAPE '|') * 10", $ranking);
+        $this->assertStringContainsString("(fd.thema LIKE '%token%' ESCAPE '|') * 10", $ranking);
+        $this->assertStringContainsString("(fd.thema LIKE '%api token%' ESCAPE '|') * 10", $ranking);
+        $this->assertStringContainsString("(fd.keywords LIKE '%api%' ESCAPE '|') * 5", $ranking);
+        $this->assertStringContainsString("(fd.keywords LIKE '%api token%' ESCAPE '|') * 10", $ranking);
+        $this->assertStringNotContainsString('fd.content LIKE', $ranking);
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('mysqlAdaptersProvider')]
+    public function testMysqlAdaptersBoostWholeWordsOnlySoLikeWildcardsNeverReachTheQuery(string $adapterClass): void
+    {
+        $db = $this->createStub(DatabaseDriver::class);
+        $db->method('escape')->willReturnArgument(0);
+        $adapter = new $adapterClass($this->createConfiguration($db, ['search.enableRelevance' => true]));
+        $this->configureAdapter($adapter);
+
+        $ranking = $adapter->setRelevanceRanking('100% my_list');
+        $boost = substr($ranking, (int) strpos($ranking, ' + '));
+
+        $this->assertStringContainsString("(fd.thema LIKE '%100%' ESCAPE '|') * 10", $boost);
+        $this->assertStringContainsString("(fd.thema LIKE '%list%' ESCAPE '|') * 10", $boost);
+        $this->assertStringNotContainsString("'%my%'", $boost);
+        $this->assertStringNotContainsString('_', $boost);
+        $this->assertStringNotContainsString('100%%', $boost);
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('mysqlAdaptersProvider')]
+    public function testMysqlAdaptersAddNoBoostWithoutSearchableWords(string $adapterClass): void
+    {
+        $db = $this->createStub(DatabaseDriver::class);
+        $db->method('escape')->willReturnArgument(0);
+        $adapter = new $adapterClass($this->createConfiguration($db, ['search.enableRelevance' => true]));
+        $this->configureAdapter($adapter);
+
+        $this->assertSame(
+            "MATCH (fd.thema, fd.content, fd.keywords) AGAINST ('a' IN BOOLEAN MODE) as score",
+            $adapter->setRelevanceRanking('a'),
         );
     }
 
@@ -271,8 +328,7 @@ class DatabaseAdaptersTest extends TestCase
             ->method('query')
             ->with($this->callback(static function (string $query): bool {
                 return (
-                    str_contains($query, "ILIKE ('%100|%|_||off%') ESCAPE '|'")
-                    && !str_contains($query, "ESCAPE '='")
+                    str_contains($query, "ILIKE ('%100|%|_||off%') ESCAPE '|'") && !str_contains($query, "ESCAPE '='")
                 );
             }))
             ->willReturn('pgsql-result');
