@@ -54,7 +54,7 @@ class SitemapXmlControllerTest extends TestCase
         $xml =
             '<?xml version="1.0" encoding="UTF-8"?>'
             . "\n"
-            . '<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"></urlset>';
+            . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>';
 
         $this->sitemapXmlService->method('generateXml')->willReturn($xml);
 
@@ -67,7 +67,7 @@ class SitemapXmlControllerTest extends TestCase
         $content = $response->getContent();
         $this->assertStringContainsString('<?xml version="1.0" encoding="UTF-8"?>', $content);
         $this->assertStringContainsString('<urlset', $content);
-        $this->assertStringContainsString('xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"', $content);
+        $this->assertStringContainsString('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"', $content);
         $this->assertStringContainsString('</urlset>', $content);
     }
 

@@ -152,4 +152,27 @@ class SitemapXmlServiceTest extends TestCase
 
         $this->assertSame('2026-01-01 00:00:00', $urls[0]['lastmod']);
     }
+
+    public function testGeneratedSitemapUsesTheNamespaceSearchEnginesRequire(): void
+    {
+        $this->configuration->method('get')->willReturn(true);
+        $this->configuration->method('getTemplateSet')->willReturn('default');
+        $this->faqStatistics
+            ->method('getTopTenData')
+            ->willReturn([
+                1 => ['url' => 'https://example.com/faq/1', 'date' => '2026-01-01T00:00:00+00:00'],
+            ]);
+        $this->customPage->method('getAllPages')->willReturn([]);
+
+        $document = new \DOMDocument();
+        $this->assertTrue($document->loadXML((string) $this->service->generateXml()));
+
+        // The sitemap protocol only accepts the http:// namespace URI; with https:// Google can't read the file
+        $namespace = 'http://www.sitemaps.org/schemas/sitemap/0.9';
+        $this->assertSame($namespace, $document->documentElement?->namespaceURI);
+        $this->assertSame(
+            'https://example.com/faq/1',
+            $document->getElementsByTagNameNS($namespace, 'loc')->item(0)?->textContent,
+        );
+    }
 }
