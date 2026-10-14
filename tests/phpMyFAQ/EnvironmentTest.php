@@ -331,6 +331,29 @@ class EnvironmentTest extends TestCase
         unset($_ENV['DEBUG'], $_ENV['DEBUG_LOG_QUERIES'], $_ENV['APP_ENV'], $_ENV['ERROR_LOG']);
     }
 
+    public function testSetupDebugModeHidesErrorsFromVisitorsWithDebugDisabled(): void
+    {
+        $_ENV['DEBUG'] = 'false';
+        $_ENV['ERROR_LOG'] = 'php://stderr';
+        $originalDisplayErrors = ini_get('display_errors');
+        // A shared PHP-FPM worker can carry display_errors=On over from another site
+        ini_set('display_errors', '1');
+
+        try {
+            $this->withHandlerCleanup(function (): void {
+                $reflection = new ReflectionClass(Environment::class);
+                $reflection->getProperty('testMode')->setValue(null, false);
+
+                $reflection->getMethod('setupDebugMode')->invoke(null);
+
+                $this->assertSame('0', ini_get('display_errors'));
+            });
+        } finally {
+            ini_set('display_errors', (string) $originalDisplayErrors);
+            unset($_ENV['DEBUG'], $_ENV['ERROR_LOG']);
+        }
+    }
+
     public function testSetupDebugModeWithoutEnvVariables(): void
     {
         unset($_ENV['DEBUG'], $_ENV['DEBUG_LOG_QUERIES'], $_ENV['APP_ENV']);

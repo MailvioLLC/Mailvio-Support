@@ -92,6 +92,11 @@ class Environment
             return;
         }
 
+        // Never show errors to visitors, whatever php.ini says. PHP-FPM workers also keep
+        // PHP_VALUE settings from other sites in a shared pool, such as display_errors=On.
+        /* @mago-expect lint:no-ini-set - display_errors must be forced off at runtime, see above */
+        ini_set('display_errors', value: '0');
+
         $errorHandler = ErrorHandler::register();
 
         $logger = new Logger(name: 'phpmyfaq');
