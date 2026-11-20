@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace phpMyFAQ\Controller\Frontend\Api;
 
 use phpMyFAQ\Alert\AlertNotifier;
-use phpMyFAQ\Mail;
 use phpMyFAQ\Mailvio\MailvioRequestFailed;
+use phpMyFAQ\Mailvio\RecipientUnsubscribed;
 use phpMyFAQ\Mailvio\Subscriptions;
+use phpMyFAQ\Mailvio\TransactionalMail;
+use phpMyFAQ\Mailvio\TransactionalMailer;
 use phpMyFAQ\Session\Token;
 use phpMyFAQ\User\CurrentUser;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -16,7 +18,6 @@ use PHPUnit\Framework\Attributes\UsesNamespace;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
-use Symfony\Component\Mailer\Exception\TransportException;
 
 #[CoversClass(SupportTicketController::class)]
 #[UsesNamespace('phpMyFAQ')]
@@ -30,23 +31,24 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         'captcha' => 'ignored-for-logged-in-user',
     ];
 
+    private const string SEND_FAILED = "We couldn't send your message. Please email us at support@example.com instead while we work on fixing this.";
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->configuration->getAll();
-        $this->overrideConfigurationValues(['main.administrationMail' => 'support@example.com']);
+        $this->overrideConfigurationValues([
+            'main.administrationMail' => 'support@example.com',
+            'main.titleFAQ' => 'Mailvio Support',
+        ]);
     }
 
-    public function testSendsTheTicketToTheSupportInboxWithTheVisitorAsReplyToAndInCopy(): void
+    public function testSendsTheVisitorACopyAndTheSupportInboxAMailThatRepliesToTheVisitor(): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->once())->method('setReplyTo')->with('jane@example.com', 'Jane Doe');
-        $mailer->expects($this->once())->method('addTo')->with('support@example.com');
-        $mailer->expects($this->once())->method('addCc')->with('jane@example.com', 'Jane Doe');
+        $mailer = $this->recordingMailer();
         $alertNotifier = $this->createMock(AlertNotifier::class);
         $alertNotifier->expects($this->never())->method('alert');
-        $mailer->expects($this->once())->method('send')->with(true);
 
         $response = $this->send($this->createController($mailer, $alertNotifier), self::VALID_TICKET);
 
@@ -55,18 +57,47 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
             'Thank you! Your message has been sent to our support team. We will reply to your email address.',
             $this->payload($response)['success'],
         );
-        self::assertSame('Campaign stuck in sending', $mailer->subject);
-        self::assertStringContainsString('Mailvio account email: jane@example.com', $mailer->message);
+        self::assertCount(2, $mailer->sent);
+        [$visitorCopy, $supportCopy] = $mailer->sent;
+
+        self::assertSame([
+            'support@example.com',
+            'Mailvio Support',
+            'support@example.com',
+            'jane@example.com',
+            'Jane Doe',
+        ], [
+            $visitorCopy->fromAddress,
+            $visitorCopy->fromName,
+            $visitorCopy->replyAddress,
+            $visitorCopy->toAddress,
+            $visitorCopy->toName,
+        ]);
+        self::assertSame([
+            'support@example.com',
+            'Jane Doe',
+            'jane@example.com',
+            'support@example.com',
+            'Mailvio Support',
+        ], [
+            $supportCopy->fromAddress,
+            $supportCopy->fromName,
+            $supportCopy->replyAddress,
+            $supportCopy->toAddress,
+            $supportCopy->toName,
+        ]);
+        self::assertSame('Campaign stuck in sending', $supportCopy->subject);
+        self::assertStringContainsString('Mailvio account email: jane@example.com', $supportCopy->html);
         self::assertStringContainsString(
             "My campaign has been sending for two days.<br />\nCan you check it?",
-            $mailer->message,
+            $supportCopy->html,
         );
+        self::assertSame($supportCopy->html, $visitorCopy->html);
     }
 
     public function testEscapesHtmlInTheTicket(): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->once())->method('send');
+        $mailer = $this->recordingMailer();
 
         $this->send($this->createController($mailer), [
             ...self::VALID_TICKET,
@@ -74,22 +105,22 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
             'message' => '<script>alert(1)</script>',
         ]);
 
-        self::assertStringNotContainsString('<script>', $mailer->message);
-        self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $mailer->message);
-        self::assertStringContainsString('&lt;b&gt;Jane&lt;/b&gt;', $mailer->message);
+        $html = $mailer->sent[1]->html;
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
+        self::assertStringContainsString('&lt;b&gt;Jane&lt;/b&gt;', $html);
     }
 
-    public function testLineBreaksCannotInjectMailHeadersThroughTheSubject(): void
+    public function testLineBreaksAreRemovedFromTheSubject(): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->once())->method('send');
+        $mailer = $this->recordingMailer();
 
         $this->send($this->createController($mailer), [
             ...self::VALID_TICKET,
             'subject' => "Hello\r\nBcc: victim@example.com",
         ]);
 
-        self::assertSame('Hello Bcc: victim@example.com', $mailer->subject);
+        self::assertSame('Hello Bcc: victim@example.com', $mailer->sent[1]->subject);
     }
 
     /**
@@ -108,19 +139,18 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     #[DataProvider('incompleteTickets')]
     public function testRefusesAnIncompleteTicket(string $field, string $value): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
+        $mailer = $this->recordingMailer();
 
         $response = $this->send($this->createController($mailer), [...self::VALID_TICKET, $field => $value]);
 
         self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
         self::assertSame('Please fill in all fields with a valid email address.', $this->payload($response)['error']);
+        self::assertSame([], $mailer->sent);
     }
 
     public function testRefusesATicketWithoutAValidCsrfToken(): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
+        $mailer = $this->recordingMailer();
         $controller = $this->createController($mailer);
         $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $this->createSession());
 
@@ -130,13 +160,12 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         ], JSON_THROW_ON_ERROR));
 
         self::assertSame(Response::HTTP_UNAUTHORIZED, $controller->create($request)->getStatusCode());
+        self::assertSame([], $mailer->sent);
     }
 
     public function testRefusesABodyThatIsNotAJsonObject(): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
-        $controller = $this->createController($mailer);
+        $controller = $this->createController($this->recordingMailer());
         $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $this->createSession());
 
         $response = $controller->create(Request::create('/api/support-ticket', 'POST', content: 'not json'));
@@ -146,8 +175,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
     public function testRefusesAGuestTicketWithAWrongCaptcha(): void
     {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
+        $mailer = $this->recordingMailer();
 
         $guest = $this->createStub(CurrentUser::class);
         $guest->method('isLoggedIn')->willReturn(false);
@@ -160,13 +188,13 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
         self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
         self::assertSame('Please enter the captcha code', $this->payload($response)['error']);
+        self::assertSame([], $mailer->sent);
     }
 
     public function testAsksForTheSecurityCheckInsteadOfACodeWhenTurnstileRefusesAGuest(): void
     {
         $this->overrideConfigurationValues(['security.enableTurnstile' => true]);
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
+        $mailer = $this->recordingMailer();
 
         $guest = $this->createStub(CurrentUser::class);
         $guest->method('isLoggedIn')->willReturn(false);
@@ -182,39 +210,32 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
             "We couldn't confirm you're human. Please complete the security check and try again.",
             $this->payload($response)['error'],
         );
+        self::assertSame([], $mailer->sent);
     }
 
     public function testTellsTheVisitorWhereToWriteWhenSendingFails(): void
     {
-        $mailer = $this->createStub(Mail::class);
-        $mailer->method('send')->willThrowException(new TransportException('Connection refused'));
+        $mailer = $this->recordingMailer(new MailvioRequestFailed('Mailvio API POST /transaction failed: timeout'));
 
         $response = $this->send($this->createController($mailer), self::VALID_TICKET);
 
         self::assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $response->getStatusCode());
-        self::assertSame(
-            "We couldn't send your message. Please email us at support@example.com instead while we work on fixing this.",
-            $this->payload($response)['error'],
-        );
+        self::assertSame(self::SEND_FAILED, $this->payload($response)['error']);
     }
 
-    public function testAlertsTheTeamWhenTheMailServerRefusesTheTicket(): void
+    public function testAlertsTheTeamWhenMailvioRefusesTheTicket(): void
     {
-        $mailer = $this->createStub(Mail::class);
-        $mailer
-            ->method('send')
-            ->willThrowException(
-                new TransportException(
-                    'Expected response code "250" but got code "500", with message "500 No Valid Mailserver Found".',
-                ),
-            );
+        $mailer = $this->recordingMailer(
+            null,
+            new MailvioRequestFailed('Mailvio API POST /transaction answered HTTP 422: {"error":"Invalid sender"}'),
+        );
         $alertNotifier = $this->createMock(AlertNotifier::class);
         $alertNotifier
             ->expects($this->once())
             ->method('alert')
             ->with(SupportTicketController::ALERT_TOPIC, self::logicalAnd(
                 self::stringContains('A support ticket could not be sent to support@example.com'),
-                self::stringContains('500 No Valid Mailserver Found'),
+                self::stringContains('Invalid sender'),
                 self::stringContains(
                     "```text\nName: Jane Doe\nEmail: jane@example.com\nSubject: Campaign stuck in sending",
                 ),
@@ -226,8 +247,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
     public function testTheVisitorCannotBreakOutOfTheAlertCodeBlock(): void
     {
-        $mailer = $this->createStub(Mail::class);
-        $mailer->method('send')->willThrowException(new TransportException('Connection refused'));
+        $mailer = $this->recordingMailer(new MailvioRequestFailed('timeout'));
         $alertNotifier = $this->createMock(AlertNotifier::class);
         $alertNotifier
             ->expects($this->once())
@@ -250,8 +270,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
     public function testLimitsTheNumberOfTicketsPerVisitor(): void
     {
-        $mailer = $this->createStub(Mail::class);
-        $controller = $this->createController($mailer);
+        $controller = $this->createController($this->recordingMailer());
 
         for ($ticket = 1; $ticket <= 5; ++$ticket) {
             self::assertSame(Response::HTTP_OK, $this->send($controller, self::VALID_TICKET)->getStatusCode());
@@ -263,15 +282,13 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         );
     }
 
-    public function testAsksToResubscribeInsteadOfBlamingTheSiteWhenTheAddressUnsubscribed(): void
+    public function testAsksToResubscribeAndSendsNothingToSupportWhenTheVisitorUnsubscribed(): void
     {
+        $mailer = $this->recordingMailer($this->unsubscribed());
         $alertNotifier = $this->createMock(AlertNotifier::class);
         $alertNotifier->expects($this->never())->method('alert');
 
-        $response = $this->send(
-            $this->createController($this->unsubscribedMailer(), $alertNotifier),
-            self::VALID_TICKET,
-        );
+        $response = $this->send($this->createController($mailer, $alertNotifier), self::VALID_TICKET);
 
         self::assertSame(Response::HTTP_CONFLICT, $response->getStatusCode());
         $payload = $this->payload($response);
@@ -283,33 +300,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         self::assertSame('jane@example.com', $payload['unsubscribed']['email']);
         self::assertSame('click here to re-subscribe', $payload['unsubscribed']['resubscribeLabel']);
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $payload['unsubscribed']['ticketId']);
-    }
-
-    public function testHoldsTheTicketWithoutSendingWhenMailvioListsTheAddressAsUnsubscribed(): void
-    {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
-        $subscriptions = $this->createStub(Subscriptions::class);
-        $subscriptions->method('isUnsubscribedFromTransactionalEmails')->willReturn(true);
-
-        $response = $this->send($this->createController($mailer, subscriptions: $subscriptions), self::VALID_TICKET);
-
-        self::assertSame(Response::HTTP_CONFLICT, $response->getStatusCode());
-        self::assertSame('jane@example.com', $this->payload($response)['unsubscribed']['email']);
-    }
-
-    public function testSendsTheTicketWhenTheSubscriptionCannotBeChecked(): void
-    {
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->once())->method('send');
-        $subscriptions = $this->createStub(Subscriptions::class);
-        $subscriptions
-            ->method('isUnsubscribedFromTransactionalEmails')
-            ->willThrowException(new MailvioRequestFailed('Mailvio API GET /group failed: timeout'));
-
-        $response = $this->send($this->createController($mailer, subscriptions: $subscriptions), self::VALID_TICKET);
-
-        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertSame([], $mailer->sent, 'The support copy must not go out without the visitor');
     }
 
     public function testResubscribesTheHeldAddressAndSendsTheHeldTicket(): void
@@ -319,9 +310,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
         $subscriptions = $this->createMock(Subscriptions::class);
         $subscriptions->expects($this->once())->method('resubscribe')->with('jane@example.com');
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->once())->method('addCc')->with('jane@example.com', 'Jane Doe');
-        $mailer->expects($this->once())->method('send')->with(true);
+        $mailer = $this->recordingMailer();
 
         $response = $this->resubscribe($this->createController($mailer, subscriptions: $subscriptions), $session, [
             'ticketId' => $ticketId,
@@ -334,15 +323,18 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
             . 'We will reply to your email address.',
             $this->payload($response)['success'],
         );
-        self::assertSame('Campaign stuck in sending', $mailer->subject);
-        self::assertStringContainsString('My campaign has been sending for two days.', $mailer->message);
+        self::assertCount(2, $mailer->sent);
+        self::assertSame('jane@example.com', $mailer->sent[0]->toAddress);
+        self::assertSame('jane@example.com', $mailer->sent[1]->replyAddress);
+        self::assertSame('Campaign stuck in sending', $mailer->sent[1]->subject);
+        self::assertStringContainsString('My campaign has been sending for two days.', $mailer->sent[1]->html);
     }
 
     public function testSendsAHeldTicketOnlyOnce(): void
     {
         $session = $this->createSession();
         $ticketId = $this->holdUnsubscribedTicket($session);
-        $controller = $this->createController($this->createStub(Mail::class));
+        $controller = $this->createController($this->recordingMailer());
 
         $this->resubscribe($controller, $session, ['ticketId' => $ticketId]);
         $response = $this->resubscribe($controller, $session, ['ticketId' => $ticketId]);
@@ -360,7 +352,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         $subscriptions->expects($this->never())->method('resubscribe');
 
         $response = $this->resubscribe(
-            $this->createController($this->createStub(Mail::class), subscriptions: $subscriptions),
+            $this->createController($this->recordingMailer(), subscriptions: $subscriptions),
             $this->createSession(),
             ['ticketId' => 'unknown', 'email' => 'victim@example.com'],
         );
@@ -374,7 +366,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         $ticketId = $this->holdUnsubscribedTicket($session);
         $subscriptions = $this->createMock(Subscriptions::class);
         $subscriptions->expects($this->never())->method('resubscribe');
-        $controller = $this->createController($this->createStub(Mail::class), subscriptions: $subscriptions);
+        $controller = $this->createController($this->recordingMailer(), subscriptions: $subscriptions);
         $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $session);
 
         $response = $controller->resubscribe(Request::create(
@@ -386,14 +378,13 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         self::assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
     }
 
-    public function testAlertsTheTeamAndKeepsTheTicketWhenResubscribingFails(): void
+    public function testAlertsTheTeamAndSendsNothingWhenResubscribingFails(): void
     {
         $session = $this->createSession();
         $ticketId = $this->holdUnsubscribedTicket($session);
         $subscriptions = $this->createStub(Subscriptions::class);
         $subscriptions->method('resubscribe')->willThrowException(new MailvioRequestFailed('Mailvio API answered 401'));
-        $mailer = $this->createMock(Mail::class);
-        $mailer->expects($this->never())->method('send');
+        $mailer = $this->recordingMailer();
         $alertNotifier = $this->createMock(AlertNotifier::class);
         $alertNotifier
             ->expects($this->once())
@@ -408,15 +399,13 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         ]);
 
         self::assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $response->getStatusCode());
-        self::assertSame(
-            "We couldn't send your message. Please email us at support@example.com instead while we work on fixing this.",
-            $this->payload($response)['error'],
-        );
+        self::assertSame(self::SEND_FAILED, $this->payload($response)['error']);
+        self::assertSame([], $mailer->sent);
     }
 
     public function testRefusesAResubscribeBodyThatIsNotAJsonObject(): void
     {
-        $controller = $this->createController($this->createStub(Mail::class));
+        $controller = $this->createController($this->recordingMailer());
         $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $this->createSession());
 
         $response = $controller->resubscribe(Request::create('/api/support-ticket/resubscribe', 'POST', content: 'x'));
@@ -426,7 +415,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
     public function testLimitsTheNumberOfResubscribeAttemptsPerVisitor(): void
     {
-        $controller = $this->createController($this->createStub(Mail::class));
+        $controller = $this->createController($this->recordingMailer());
         $session = $this->createSession();
 
         for ($attempt = 1; $attempt <= 5; ++$attempt) {
@@ -438,21 +427,28 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         ])->getStatusCode());
     }
 
-    private function unsubscribedMailer(): Mail
+    private function unsubscribed(): RecipientUnsubscribed
     {
-        $mailer = $this->createStub(Mail::class);
-        $mailer
-            ->method('send')
-            ->willThrowException(new TransportException('Expected response code "250" but got code "500", with message "500 Email Address Unsubscribed '
-            . 'Previously".'));
+        return new RecipientUnsubscribed(
+            'Mailvio refused the mail to "jane@example.com": Email Address Unsubscribed Previously',
+            422,
+            'Email Address Unsubscribed Previously',
+        );
+    }
 
-        return $mailer;
+    /**
+     * A mailer that records what it sends; each given exception is thrown by the matching send call
+     * instead (null sends normally).
+     */
+    private function recordingMailer(?MailvioRequestFailed ...$failures): RecordingTransactionalMailer
+    {
+        return new RecordingTransactionalMailer($failures);
     }
 
     private function holdUnsubscribedTicket(Session $session): string
     {
         $response = $this->send(
-            $this->createController($this->unsubscribedMailer()),
+            $this->createController($this->recordingMailer($this->unsubscribed())),
             self::VALID_TICKET,
             session: $session,
         );
@@ -461,7 +457,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     }
 
     private function createController(
-        Mail $mailer,
+        TransactionalMailer $mailer,
         ?AlertNotifier $alertNotifier = null,
         ?Subscriptions $subscriptions = null,
     ): SupportTicketController {
@@ -524,5 +520,31 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     private function payload(Response $response): array
     {
         return json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+    }
+}
+
+final class RecordingTransactionalMailer implements TransactionalMailer
+{
+    /** @var list<TransactionalMail> */
+    public array $sent = [];
+
+    private int $calls = 0;
+
+    /**
+     * @param array<int, MailvioRequestFailed|null> $failures
+     */
+    public function __construct(
+        private readonly array $failures,
+    ) {
+    }
+
+    public function send(TransactionalMail $mail): void
+    {
+        $failure = $this->failures[$this->calls++] ?? null;
+        if ($failure !== null) {
+            throw $failure;
+        }
+
+        $this->sent[] = $mail;
     }
 }

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Subscription state of an email address in the Mailvio account the site sends from.
+ * Subscriptions of an email address in the Mailvio account the site sends from.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License,
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
@@ -21,13 +21,6 @@ namespace phpMyFAQ\Mailvio;
 
 interface Subscriptions
 {
-    /**
-     * Mailvio refuses transactional mail, support tickets included, to such an address.
-     *
-     * @throws MailvioRequestFailed when the state could not be looked up
-     */
-    public function isUnsubscribedFromTransactionalEmails(string $emailAddress): bool;
-
     /**
      * @throws MailvioRequestFailed when the address could not be re-subscribed
      */

@@ -20,5 +20,20 @@ declare(strict_types=1);
 namespace phpMyFAQ\Mailvio;
 
 use RuntimeException;
+use Throwable;
 
-final class MailvioRequestFailed extends RuntimeException {}
+class MailvioRequestFailed extends RuntimeException
+{
+    /**
+     * @param int $httpStatus 0 when Mailvio did not answer
+     * @param string $apiError the "error" text of Mailvio's answer, if any
+     */
+    public function __construct(
+        string $message,
+        public readonly int $httpStatus = 0,
+        public readonly string $apiError = '',
+        ?Throwable $previous = null,
+    ) {
+        parent::__construct($message, previous: $previous);
+    }
+}

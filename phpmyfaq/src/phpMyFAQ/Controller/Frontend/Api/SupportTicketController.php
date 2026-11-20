@@ -21,11 +21,12 @@ namespace phpMyFAQ\Controller\Frontend\Api;
 
 use phpMyFAQ\Alert\AlertNotifier;
 use phpMyFAQ\Controller\AbstractController;
-use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Http\RateLimiter;
-use phpMyFAQ\Mail;
 use phpMyFAQ\Mailvio\MailvioRequestFailed;
+use phpMyFAQ\Mailvio\RecipientUnsubscribed;
 use phpMyFAQ\Mailvio\Subscriptions;
+use phpMyFAQ\Mailvio\TransactionalMail;
+use phpMyFAQ\Mailvio\TransactionalMailer;
 use phpMyFAQ\Session\Token;
 use phpMyFAQ\SupportTicket\PendingSupportTickets;
 use phpMyFAQ\SupportTicket\SupportTicket;
@@ -34,17 +35,17 @@ use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Throwable;
 
 /**
- * Unlike a public question, a support ticket is never stored or published: it is mailed to the
- * administration address right away, with the visitor as reply-to address and in copy. When the mail
- * server refuses it, the team gets an alert.
+ * Unlike a public question, a support ticket is never stored or published: it is mailed right away,
+ * as a copy for the visitor and a mail to the administration address with the visitor as reply-to
+ * address, so the mailbox bridge can open a ticket for them. When sending fails, the team gets an alert.
  *
- * Mailvio refuses to mail an address that unsubscribed from the account the site sends from. Such a
- * ticket waits in the session instead: the visitor can re-subscribe, which sends it right away.
+ * Both go through the Mailvio API: Mailvio's SMTP relay drops Reply-To and Cc. Mailvio refuses to mail
+ * an address that unsubscribed from the account the site sends from. Such a ticket waits in the
+ * session instead: the visitor can re-subscribe, which sends it right away.
  */
 final class SupportTicketController extends AbstractController
 {
@@ -58,12 +59,10 @@ final class SupportTicketController extends AbstractController
 
     private const int RESUBSCRIBE_LIMIT_PER_IP = 5;
 
-    private const string UNSUBSCRIBED_REFUSAL = 'Unsubscribed Previously';
-
     private readonly RateLimiter $rateLimiter;
 
     public function __construct(
-        private readonly Mail $mailer,
+        private readonly TransactionalMailer $mailer,
         private readonly AlertNotifier $alertNotifier,
         private readonly Subscriptions $subscriptions,
         ?RateLimiter $rateLimiter = null,
@@ -110,20 +109,11 @@ final class SupportTicketController extends AbstractController
             return $this->json(['error' => $this->captchaFailedMessage()], Response::HTTP_BAD_REQUEST);
         }
 
-        if ($this->isUnsubscribedFromTransactionalEmails($ticket->email)) {
-            return $this->askToResubscribe(
-                $ticket,
-                'Mailvio lists the address as unsubscribed from transactional emails',
-            );
-        }
-
         try {
             $this->deliver($ticket);
-        } catch (Exception|TransportExceptionInterface $exception) {
-            if ($this->refusedAsUnsubscribed($exception)) {
-                return $this->askToResubscribe($ticket, $exception->getMessage());
-            }
-
+        } catch (RecipientUnsubscribed $exception) {
+            return $this->askToResubscribe($ticket, $exception->getMessage());
+        } catch (MailvioRequestFailed $exception) {
             return $this->sendFailed($ticket, $exception);
         }
 
@@ -172,7 +162,7 @@ final class SupportTicketController extends AbstractController
         try {
             $this->subscriptions->resubscribe($ticket->email);
             $this->deliver($ticket);
-        } catch (MailvioRequestFailed|Exception|TransportExceptionInterface $exception) {
+        } catch (MailvioRequestFailed $exception) {
             return $this->sendFailed($ticket, $exception);
         }
 
@@ -195,47 +185,35 @@ final class SupportTicketController extends AbstractController
     }
 
     /**
-     * @throws Exception|TransportExceptionInterface
+     * The visitor's copy goes first: when Mailvio refuses it because they unsubscribed, nothing has been
+     * sent yet. The support copy carries the visitor's name and address, so a reply reaches them.
+     *
+     * @throws MailvioRequestFailed
      */
     private function deliver(SupportTicket $ticket): void
     {
-        $this->mailer->setReplyTo($ticket->email, $ticket->name);
-        $this->mailer->addTo($this->configuration->getAdminEmail());
-        // The mail is sent from the support address, so replying to all also reaches the visitor
-        $this->mailer->addCc($ticket->email, $ticket->name);
-        $this->mailer->subject = $ticket->subject;
-        $this->mailer->message = $this->renderMessage($ticket);
-        // Delivered right away, so the visitor learns about a failure instead of losing the ticket
-        $this->mailer->send(forceSynchronousDelivery: true);
-    }
+        $supportAddress = $this->configuration->getAdminEmail();
+        $supportName = $this->configuration->getTitle();
+        $message = $this->renderMessage($ticket);
 
-    /**
-     * Mailvio answers RCPT TO with "500 Email Address Unsubscribed Previously" for such an address.
-     */
-    private function refusedAsUnsubscribed(Throwable $exception): bool
-    {
-        return stripos($exception->getMessage(), self::UNSUBSCRIBED_REFUSAL) !== false;
-    }
-
-    /**
-     * Checked before sending: Mailvio refuses such a mail only after taking it, and still delivers the
-     * support copy without the visitor, which the mailbox bridge cannot turn into a ticket. When the
-     * API cannot answer, the ticket is sent anyway and a refusal is handled afterwards.
-     */
-    private function isUnsubscribedFromTransactionalEmails(string $emailAddress): bool
-    {
-        try {
-            return $this->subscriptions->isUnsubscribedFromTransactionalEmails($emailAddress);
-        } catch (MailvioRequestFailed $exception) {
-            $this->configuration
-                ->getLogger()
-                ->warning(
-                    'Could not check the Mailvio subscription before sending a support ticket: '
-                        . $exception->getMessage(),
-                );
-
-            return false;
-        }
+        $this->mailer->send(new TransactionalMail(
+            fromAddress: $supportAddress,
+            fromName: $supportName,
+            replyAddress: $supportAddress,
+            toAddress: $ticket->email,
+            toName: $ticket->name,
+            subject: $ticket->subject,
+            html: $message,
+        ));
+        $this->mailer->send(new TransactionalMail(
+            fromAddress: $supportAddress,
+            fromName: $ticket->name,
+            replyAddress: $ticket->email,
+            toAddress: $supportAddress,
+            toName: $supportName,
+            subject: $ticket->subject,
+            html: $message,
+        ));
     }
 
     private function askToResubscribe(SupportTicket $ticket, string $reason): JsonResponse

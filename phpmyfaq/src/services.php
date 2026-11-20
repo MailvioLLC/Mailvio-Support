@@ -174,7 +174,9 @@ use phpMyFAQ\Language;
 use phpMyFAQ\Language\Plurals;
 use phpMyFAQ\Ldap;
 use phpMyFAQ\Mail;
+use phpMyFAQ\Mailvio\MailvioApi;
 use phpMyFAQ\Mailvio\MailvioApiSubscriptions;
+use phpMyFAQ\Mailvio\MailvioApiTransactionalMailer;
 use phpMyFAQ\News;
 use phpMyFAQ\Notification;
 use phpMyFAQ\Plugin\PluginManager;
@@ -714,11 +716,19 @@ return static function (ContainerConfigurator $container): void {
         ]);
 
     $services
-        ->set('phpmyfaq.mailvio.subscriptions', MailvioApiSubscriptions::class)
-        ->factory([MailvioApiSubscriptions::class, 'fromEnvironment'])
+        ->set('phpmyfaq.mailvio.api', MailvioApi::class)
+        ->factory([MailvioApi::class, 'fromEnvironment'])
         ->args([
             service('phpmyfaq.http-client'),
         ]);
+
+    $services->set('phpmyfaq.mailvio.subscriptions', MailvioApiSubscriptions::class)->args([
+        service('phpmyfaq.mailvio.api'),
+    ]);
+
+    $services->set('phpmyfaq.mailvio.transactional-mailer', MailvioApiTransactionalMailer::class)->args([
+        service('phpmyfaq.mailvio.api'),
+    ]);
 
     // Translation Provider (factory-created)
     $services
@@ -887,7 +897,7 @@ return static function (ContainerConfigurator $container): void {
         service('phpmyfaq.http.rate-limiter'),
     ]);
     $services->set(FrontendApiSupportTicketController::class, FrontendApiSupportTicketController::class)->args([
-        service('phpmyfaq.mail'),
+        service('phpmyfaq.mailvio.transactional-mailer'),
         service('phpmyfaq.alert-notifier'),
         service('phpmyfaq.mailvio.subscriptions'),
         service('phpmyfaq.http.rate-limiter'),
