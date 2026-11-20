@@ -1924,6 +1924,10 @@ $PMF_LANG['msgSupportTicketSubmit'] = 'Send to support';
 $PMF_LANG['msgSupportTicketSent'] = 'Thank you! Your message has been sent to our support team. We will reply to your email address.';
 $PMF_LANG['msgSupportTicketSendFailed'] = 'We couldn\'t send your message. Please email us at %s instead while we work on fixing this.';
 $PMF_LANG['msgSupportTicketMissingFields'] = 'Please fill in all fields with a valid email address.';
+$PMF_LANG['msgSupportTicketUnsubscribed'] = 'You previously unsubscribed with your email %1$s, hence we can not reply to your emails. Please %2$s to Mailvio emails or directly email us at %3$s.';
+$PMF_LANG['msgSupportTicketResubscribe'] = 'click here to re-subscribe';
+$PMF_LANG['msgSupportTicketResubscribed'] = 'You are subscribed to Mailvio emails again, and your message has been sent to our support team. We will reply to your email address.';
+$PMF_LANG['msgSupportTicketResubscribeExpired'] = 'Your message is no longer waiting to be sent. Please send it again.';
 $PMF_LANG['msgLogInToComment'] = 'Log in to comment on this FAQ';
 $PMF_LANG['msgCaptchaChallengeFailed'] = 'We couldn\'t confirm you\'re human. Please complete the security check and try again.';
 

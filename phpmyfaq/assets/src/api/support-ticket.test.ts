@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { sendSupportTicket } from './support-ticket';
+import { resubscribeSupportTicket, sendSupportTicket } from './support-ticket';
 
 const mockFetch = (ok: boolean, status: number, body: unknown): void => {
   global.fetch = vi.fn(() =>
@@ -40,5 +40,32 @@ describe('sendSupportTicket', () => {
     mockFetch(false, 500, undefined);
 
     await expect(sendSupportTicket(new FormData())).rejects.toThrow('HTTP 500');
+  });
+});
+
+describe('resubscribeSupportTicket', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('posts the CSRF token and the ticket id, never an email address', async () => {
+    mockFetch(true, 200, { success: 'Sent' });
+
+    const result = await resubscribeSupportTicket('csrf-123', 'ticket-1');
+
+    expect(result).toEqual({ success: 'Sent' });
+    expect(global.fetch).toHaveBeenCalledWith(
+      'api/support-ticket/resubscribe',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ 'pmf-csrf-token': 'csrf-123', ticketId: 'ticket-1' }),
+      })
+    );
+  });
+
+  test('returns the error message when the ticket is no longer waiting', async () => {
+    mockFetch(false, 404, { error: 'Please send it again.' });
+
+    await expect(resubscribeSupportTicket('csrf-123', 'gone')).resolves.toEqual({ error: 'Please send it again.' });
   });
 });

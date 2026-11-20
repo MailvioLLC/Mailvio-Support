@@ -174,6 +174,7 @@ use phpMyFAQ\Language;
 use phpMyFAQ\Language\Plurals;
 use phpMyFAQ\Ldap;
 use phpMyFAQ\Mail;
+use phpMyFAQ\Mailvio\MailvioApiResubscriber;
 use phpMyFAQ\News;
 use phpMyFAQ\Notification;
 use phpMyFAQ\Plugin\PluginManager;
@@ -712,6 +713,13 @@ return static function (ContainerConfigurator $container): void {
             service('phpmyfaq.configuration'),
         ]);
 
+    $services
+        ->set('phpmyfaq.mailvio.resubscriber', MailvioApiResubscriber::class)
+        ->factory([MailvioApiResubscriber::class, 'fromEnvironment'])
+        ->args([
+            service('phpmyfaq.http-client'),
+        ]);
+
     // Translation Provider (factory-created)
     $services
         ->set('phpmyfaq.translation.provider', TranslationProviderInterface::class)
@@ -881,6 +889,7 @@ return static function (ContainerConfigurator $container): void {
     $services->set(FrontendApiSupportTicketController::class, FrontendApiSupportTicketController::class)->args([
         service('phpmyfaq.mail'),
         service('phpmyfaq.alert-notifier'),
+        service('phpmyfaq.mailvio.resubscriber'),
         service('phpmyfaq.http.rate-limiter'),
     ]);
     $services->set(FrontendApiUnauthorizedUserController::class, FrontendApiUnauthorizedUserController::class)->args([

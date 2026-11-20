@@ -6,6 +6,8 @@ namespace phpMyFAQ\Controller\Frontend\Api;
 
 use phpMyFAQ\Alert\AlertNotifier;
 use phpMyFAQ\Mail;
+use phpMyFAQ\Mailvio\ResubscribeFailed;
+use phpMyFAQ\Mailvio\Resubscriber;
 use phpMyFAQ\Session\Token;
 use phpMyFAQ\User\CurrentUser;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -261,17 +263,198 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         );
     }
 
-    private function createController(Mail $mailer, ?AlertNotifier $alertNotifier = null): SupportTicketController
+    public function testAsksToResubscribeInsteadOfBlamingTheSiteWhenTheAddressUnsubscribed(): void
     {
-        return new SupportTicketController($mailer, $alertNotifier ?? $this->createStub(AlertNotifier::class));
+        $alertNotifier = $this->createMock(AlertNotifier::class);
+        $alertNotifier->expects($this->never())->method('alert');
+
+        $response = $this->send(
+            $this->createController($this->unsubscribedMailer(), $alertNotifier),
+            self::VALID_TICKET,
+        );
+
+        self::assertSame(Response::HTTP_CONFLICT, $response->getStatusCode());
+        $payload = $this->payload($response);
+        self::assertSame(
+            'You previously unsubscribed with your email jane@example.com, hence we can not reply to your emails. '
+            . 'Please click here to re-subscribe to Mailvio emails or directly email us at support@example.com.',
+            $payload['error'],
+        );
+        self::assertSame('jane@example.com', $payload['unsubscribed']['email']);
+        self::assertSame('click here to re-subscribe', $payload['unsubscribed']['resubscribeLabel']);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $payload['unsubscribed']['ticketId']);
+    }
+
+    public function testResubscribesTheHeldAddressAndSendsTheHeldTicket(): void
+    {
+        $session = $this->createSession();
+        $ticketId = $this->holdUnsubscribedTicket($session);
+
+        $resubscriber = $this->createMock(Resubscriber::class);
+        $resubscriber->expects($this->once())->method('resubscribe')->with('jane@example.com');
+        $mailer = $this->createMock(Mail::class);
+        $mailer->expects($this->once())->method('addCc')->with('jane@example.com', 'Jane Doe');
+        $mailer->expects($this->once())->method('send')->with(true);
+
+        $response = $this->resubscribe($this->createController($mailer, resubscriber: $resubscriber), $session, [
+            'ticketId' => $ticketId,
+            'email' => 'someone-else@example.com',
+        ]);
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertSame(
+            'You are subscribed to Mailvio emails again, and your message has been sent to our support team. '
+            . 'We will reply to your email address.',
+            $this->payload($response)['success'],
+        );
+        self::assertSame('Campaign stuck in sending', $mailer->subject);
+        self::assertStringContainsString('My campaign has been sending for two days.', $mailer->message);
+    }
+
+    public function testSendsAHeldTicketOnlyOnce(): void
+    {
+        $session = $this->createSession();
+        $ticketId = $this->holdUnsubscribedTicket($session);
+        $controller = $this->createController($this->createStub(Mail::class));
+
+        $this->resubscribe($controller, $session, ['ticketId' => $ticketId]);
+        $response = $this->resubscribe($controller, $session, ['ticketId' => $ticketId]);
+
+        self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
+        self::assertSame(
+            'Your message is no longer waiting to be sent. Please send it again.',
+            $this->payload($response)['error'],
+        );
+    }
+
+    public function testRefusesToResubscribeWithoutAHeldTicket(): void
+    {
+        $resubscriber = $this->createMock(Resubscriber::class);
+        $resubscriber->expects($this->never())->method('resubscribe');
+
+        $response = $this->resubscribe(
+            $this->createController($this->createStub(Mail::class), resubscriber: $resubscriber),
+            $this->createSession(),
+            ['ticketId' => 'unknown', 'email' => 'victim@example.com'],
+        );
+
+        self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
+    }
+
+    public function testRefusesToResubscribeWithoutAValidCsrfToken(): void
+    {
+        $session = $this->createSession();
+        $ticketId = $this->holdUnsubscribedTicket($session);
+        $resubscriber = $this->createMock(Resubscriber::class);
+        $resubscriber->expects($this->never())->method('resubscribe');
+        $controller = $this->createController($this->createStub(Mail::class), resubscriber: $resubscriber);
+        $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $session);
+
+        $response = $controller->resubscribe(Request::create(
+            '/api/support-ticket/resubscribe',
+            'POST',
+            content: json_encode(['ticketId' => $ticketId, 'pmf-csrf-token' => 'forged'], JSON_THROW_ON_ERROR),
+        ));
+
+        self::assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
+    }
+
+    public function testAlertsTheTeamAndKeepsTheTicketWhenResubscribingFails(): void
+    {
+        $session = $this->createSession();
+        $ticketId = $this->holdUnsubscribedTicket($session);
+        $resubscriber = $this->createStub(Resubscriber::class);
+        $resubscriber->method('resubscribe')->willThrowException(new ResubscribeFailed('Mailvio API answered 401'));
+        $mailer = $this->createMock(Mail::class);
+        $mailer->expects($this->never())->method('send');
+        $alertNotifier = $this->createMock(AlertNotifier::class);
+        $alertNotifier
+            ->expects($this->once())
+            ->method('alert')
+            ->with(SupportTicketController::ALERT_TOPIC, self::logicalAnd(
+                self::stringContains('Mailvio API answered 401'),
+                self::stringContains('Email: jane@example.com'),
+            ));
+
+        $response = $this->resubscribe($this->createController($mailer, $alertNotifier, $resubscriber), $session, [
+            'ticketId' => $ticketId,
+        ]);
+
+        self::assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $response->getStatusCode());
+        self::assertSame(
+            "We couldn't send your message. Please email us at support@example.com instead while we work on fixing this.",
+            $this->payload($response)['error'],
+        );
+    }
+
+    public function testRefusesAResubscribeBodyThatIsNotAJsonObject(): void
+    {
+        $controller = $this->createController($this->createStub(Mail::class));
+        $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $this->createSession());
+
+        $response = $controller->resubscribe(Request::create('/api/support-ticket/resubscribe', 'POST', content: 'x'));
+
+        self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+    }
+
+    public function testLimitsTheNumberOfResubscribeAttemptsPerVisitor(): void
+    {
+        $controller = $this->createController($this->createStub(Mail::class));
+        $session = $this->createSession();
+
+        for ($attempt = 1; $attempt <= 5; ++$attempt) {
+            $this->resubscribe($controller, $session, ['ticketId' => 'unknown']);
+        }
+
+        self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $this->resubscribe($controller, $session, [
+            'ticketId' => 'unknown',
+        ])->getStatusCode());
+    }
+
+    private function unsubscribedMailer(): Mail
+    {
+        $mailer = $this->createStub(Mail::class);
+        $mailer
+            ->method('send')
+            ->willThrowException(new TransportException('Expected response code "250" but got code "500", with message "500 Email Address Unsubscribed '
+            . 'Previously".'));
+
+        return $mailer;
+    }
+
+    private function holdUnsubscribedTicket(Session $session): string
+    {
+        $response = $this->send(
+            $this->createController($this->unsubscribedMailer()),
+            self::VALID_TICKET,
+            session: $session,
+        );
+
+        return $this->payload($response)['unsubscribed']['ticketId'];
+    }
+
+    private function createController(
+        Mail $mailer,
+        ?AlertNotifier $alertNotifier = null,
+        ?Resubscriber $resubscriber = null,
+    ): SupportTicketController {
+        return new SupportTicketController(
+            $mailer,
+            $alertNotifier ?? $this->createStub(AlertNotifier::class),
+            $resubscriber ?? $this->createStub(Resubscriber::class),
+        );
     }
 
     /**
      * @param array<string, string> $ticket
      */
-    private function send(SupportTicketController $controller, array $ticket, ?CurrentUser $user = null): Response
-    {
-        [$session, $csrfToken] = $this->createValidCsrfSession();
+    private function send(
+        SupportTicketController $controller,
+        array $ticket,
+        ?CurrentUser $user = null,
+        ?Session $session = null,
+    ): Response {
+        [$session, $csrfToken] = $this->createValidCsrfSession($session);
         $this->injectControllerState($controller, $user ?? $this->createAuthenticatedUserMock(), $session);
 
         return $controller->create(Request::create('/api/support-ticket', 'POST', content: json_encode([
@@ -281,12 +464,26 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     }
 
     /**
+     * @param array<string, string> $data
+     */
+    private function resubscribe(SupportTicketController $controller, Session $session, array $data): Response
+    {
+        [$session, $csrfToken] = $this->createValidCsrfSession($session);
+        $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $session);
+
+        return $controller->resubscribe(Request::create('/api/support-ticket/resubscribe', 'POST', content: json_encode(
+            [...$data, 'pmf-csrf-token' => $csrfToken],
+            JSON_THROW_ON_ERROR,
+        )));
+    }
+
+    /**
      * @return array{0: Session, 1: string}
      */
-    private function createValidCsrfSession(): array
+    private function createValidCsrfSession(?Session $session = null): array
     {
         Token::resetInstanceForTests();
-        $session = $this->createSession();
+        $session ??= $this->createSession();
         $csrfToken = Token::getInstance($session)->getTokenString(SupportTicketController::CSRF_PAGE);
         $_COOKIE[sprintf('%s-%s', Token::PMF_SESSION_NAME, substr(md5(SupportTicketController::CSRF_PAGE), 0, 10))] =
             $csrfToken;
@@ -295,7 +492,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function payload(Response $response): array
     {

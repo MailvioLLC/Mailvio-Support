@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./api', () => ({
   sendSupportTicket: vi.fn(),
+  resubscribeSupportTicket: vi.fn(),
 }));
 
 vi.mock('./utils', async () => ({
@@ -10,7 +11,7 @@ vi.mock('./utils', async () => ({
 }));
 
 import { handleAskTabs, handleSupportTicket } from './support-ticket';
-import { sendSupportTicket } from './api';
+import { resubscribeSupportTicket, sendSupportTicket } from './api';
 import { resetTurnstile } from './utils';
 
 const renderPage = (): void => {
@@ -28,6 +29,7 @@ const renderPage = (): void => {
       <div class="tab-pane" id="support-ticket">
         <div id="pmf-support-ticket-response"></div>
         <form id="pmf-support-ticket-form" class="needs-validation" data-send-failed="Please email us at support@example.com instead.">
+          <input type="hidden" name="pmf-csrf-token" value="csrf-123">
           <input name="name" value="Jane" required>
           <input name="email" value="jane@example.com" required>
           <input name="subject" value="Help" required>
@@ -160,5 +162,75 @@ describe('handleSupportTicket', () => {
     expect(document.querySelector('.alert-danger')?.textContent).toBe(
       'Please email us at support@example.com instead. <b>not html</b>'
     );
+  });
+
+  describe('when Mailvio refused the address as unsubscribed', () => {
+    const unsubscribedResponse = {
+      error:
+        'You previously unsubscribed with your email jane@example.com, hence we can not reply to your emails. ' +
+        'Please click here to re-subscribe to Mailvio emails or directly email us at support@example.com.',
+      unsubscribed: { email: 'jane@example.com', ticketId: 'ticket-1', resubscribeLabel: 'click here to re-subscribe' },
+    };
+
+    const submitUnsubscribed = async (): Promise<HTMLButtonElement> => {
+      vi.mocked(sendSupportTicket).mockResolvedValue(unsubscribedResponse);
+      handleSupportTicket();
+      document.getElementById('pmf-submit-support-ticket')?.click();
+      await vi.waitFor(() => expect(document.getElementById('pmf-support-ticket-resubscribe')).not.toBeNull());
+
+      return document.getElementById('pmf-support-ticket-resubscribe') as HTMLButtonElement;
+    };
+
+    it('explains the unsubscribe and offers a re-subscribe link instead of blaming the site', async () => {
+      const button = await submitUnsubscribed();
+
+      const alert = document.querySelector('#pmf-support-ticket-response .alert-warning') as HTMLElement;
+      expect(alert.textContent).toBe(unsubscribedResponse.error);
+      expect(button.textContent).toBe('click here to re-subscribe');
+      expect(alert.querySelector('strong')?.textContent).toBe('jane@example.com');
+      expect(alert.querySelector('a')?.getAttribute('href')).toBe('mailto:support@example.com');
+      expect(document.querySelector('.alert-danger')).toBeNull();
+    });
+
+    it('re-subscribes, sends the waiting ticket and shows the confirmation', async () => {
+      vi.mocked(resubscribeSupportTicket).mockResolvedValue({ success: 'Subscribed again and sent' });
+      const button = await submitUnsubscribed();
+
+      button.click();
+
+      await vi.waitFor(() => {
+        expect(document.querySelector('#pmf-support-ticket-response .alert-success')?.textContent).toBe(
+          'Subscribed again and sent'
+        );
+      });
+      expect(resubscribeSupportTicket).toHaveBeenCalledWith('csrf-123', 'ticket-1');
+      expect(document.querySelector('.alert-warning')).toBeNull();
+      expect(document.getElementById('pmf-support-ticket-form')?.classList.contains('d-none')).toBe(true);
+    });
+
+    it('shows the error when re-subscribing fails', async () => {
+      vi.mocked(resubscribeSupportTicket).mockResolvedValue({ error: 'Please email us at support@example.com.' });
+      const button = await submitUnsubscribed();
+
+      button.click();
+
+      await vi.waitFor(() => {
+        expect(document.querySelector('.alert-danger')?.textContent).toBe('Please email us at support@example.com.');
+      });
+      expect(document.getElementById('pmf-support-ticket-form')?.classList.contains('d-none')).toBe(false);
+    });
+
+    it('shows the send-failed message when the re-subscribe request breaks', async () => {
+      vi.mocked(resubscribeSupportTicket).mockRejectedValue(new Error('HTTP 502'));
+      const button = await submitUnsubscribed();
+
+      button.click();
+
+      await vi.waitFor(() => {
+        expect(document.querySelector('.alert-danger')?.textContent).toBe(
+          'Please email us at support@example.com instead.'
+        );
+      });
+    });
   });
 });

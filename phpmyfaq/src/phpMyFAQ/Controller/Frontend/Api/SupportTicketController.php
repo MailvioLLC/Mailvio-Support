@@ -24,7 +24,11 @@ use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Http\RateLimiter;
 use phpMyFAQ\Mail;
+use phpMyFAQ\Mailvio\ResubscribeFailed;
+use phpMyFAQ\Mailvio\Resubscriber;
 use phpMyFAQ\Session\Token;
+use phpMyFAQ\SupportTicket\PendingSupportTickets;
+use phpMyFAQ\SupportTicket\SupportTicket;
 use phpMyFAQ\Translation;
 use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,11 +36,15 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Throwable;
 
 /**
  * Unlike a public question, a support ticket is never stored or published: it is mailed to the
  * administration address right away, with the visitor as reply-to address and in copy. When the mail
  * server refuses it, the team gets an alert.
+ *
+ * Mailvio refuses to mail an address that unsubscribed from the account the site sends from. Such a
+ * ticket waits in the session instead: the visitor can re-subscribe, which sends it right away.
  */
 final class SupportTicketController extends AbstractController
 {
@@ -48,11 +56,16 @@ final class SupportTicketController extends AbstractController
 
     private const int CREATE_LIMIT_INTERVAL_SECONDS = 3600;
 
+    private const int RESUBSCRIBE_LIMIT_PER_IP = 5;
+
+    private const string UNSUBSCRIBED_REFUSAL = 'Unsubscribed Previously';
+
     private readonly RateLimiter $rateLimiter;
 
     public function __construct(
         private readonly Mail $mailer,
         private readonly AlertNotifier $alertNotifier,
+        private readonly Resubscriber $resubscriber,
         ?RateLimiter $rateLimiter = null,
     ) {
         $this->rateLimiter = $rateLimiter ?? new RateLimiter();
@@ -86,12 +99,8 @@ final class SupportTicketController extends AbstractController
             return $this->json(['error' => Translation::get(key: 'ad_msg_noauth')], Response::HTTP_UNAUTHORIZED);
         }
 
-        $name = $this->singleLine($data['name'] ?? '');
-        $email = filter_var($this->singleLine($data['email'] ?? ''), FILTER_VALIDATE_EMAIL);
-        $subject = $this->singleLine($data['subject'] ?? '');
-        $message = trim(is_scalar($data['message'] ?? null) ? (string) $data['message'] : '');
-
-        if ($name === '' || $email === false || $subject === '' || $message === '') {
+        $ticket = $this->ticketFrom($data);
+        if ($ticket === null) {
             return $this->json([
                 'error' => Translation::get(key: 'msgSupportTicketMissingFields'),
             ], Response::HTTP_BAD_REQUEST);
@@ -102,32 +111,138 @@ final class SupportTicketController extends AbstractController
         }
 
         try {
-            $this->mailer->setReplyTo($email, $name);
-            $this->mailer->addTo($this->configuration->getAdminEmail());
-            // The mail is sent from the support address, so replying to all also reaches the visitor
-            $this->mailer->addCc($email, $name);
-            $this->mailer->subject = $subject;
-            $this->mailer->message = $this->renderMessage($name, $email, $subject, $message);
-            // Delivered right away, so the visitor learns about a failure instead of losing the ticket
-            $this->mailer->send(forceSynchronousDelivery: true);
+            $this->deliver($ticket);
         } catch (Exception|TransportExceptionInterface $exception) {
-            $this->configuration->getLogger()->error('Sending a support ticket failed: ' . $exception->getMessage());
-            $this->alertNotifier->alert(self::ALERT_TOPIC, $this->renderAlert(
-                $exception->getMessage(),
-                $name,
-                $email,
-                $subject,
-                $message,
-            ));
+            if ($this->refusedAsUnsubscribed($exception)) {
+                return $this->askToResubscribe($ticket, $exception);
+            }
 
-            // Not 502: Cloudflare replaces the body of a 502 with its own error page
-            return $this->json(['error' => sprintf(
-                Translation::getString(key: 'msgSupportTicketSendFailed'),
-                $this->configuration->getAdminEmail(),
-            )], Response::HTTP_SERVICE_UNAVAILABLE);
+            return $this->sendFailed($ticket, $exception);
         }
 
         return $this->json(['success' => Translation::get(key: 'msgSupportTicketSent')], Response::HTTP_OK);
+    }
+
+    /**
+     * Re-subscribes the address of a ticket that Mailvio refused, then sends that ticket. Only the
+     * id of a ticket held in this session is accepted, never an email address.
+     *
+     * @throws \Exception
+     */
+    #[Route(path: 'support-ticket/resubscribe', name: 'api.private.support-ticket.resubscribe', methods: ['POST'])]
+    public function resubscribe(Request $request): JsonResponse
+    {
+        if (!$this->rateLimiter->check(
+            'support-ticket:resubscribe:ip:' . ($request->getClientIp() ?? 'anonymous'),
+            self::RESUBSCRIBE_LIMIT_PER_IP,
+            self::CREATE_LIMIT_INTERVAL_SECONDS,
+        )) {
+            return $this->json(['error' => 'Too many requests. Please retry later.'], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        try {
+            $data = $request->toArray();
+        } catch (JsonException) {
+            return $this->json(['error' => 'The request body must be a JSON object'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if (!Token::getInstance($this->session)->verifyToken(
+            page: self::CSRF_PAGE,
+            requestToken: $this->singleLine($data['pmf-csrf-token'] ?? ''),
+        )) {
+            return $this->json(['error' => Translation::get(key: 'ad_msg_noauth')], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $pendingTickets = new PendingSupportTickets($this->session);
+        $ticketId = $this->singleLine($data['ticketId'] ?? '');
+        $ticket = $pendingTickets->find($ticketId);
+        if ($ticket === null) {
+            return $this->json([
+                'error' => Translation::get(key: 'msgSupportTicketResubscribeExpired'),
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $this->resubscriber->resubscribe($ticket->email);
+            $this->deliver($ticket);
+        } catch (ResubscribeFailed|Exception|TransportExceptionInterface $exception) {
+            return $this->sendFailed($ticket, $exception);
+        }
+
+        $pendingTickets->release($ticketId);
+
+        return $this->json(['success' => Translation::get(key: 'msgSupportTicketResubscribed')], Response::HTTP_OK);
+    }
+
+    /**
+     * @param array<mixed> $data
+     */
+    private function ticketFrom(array $data): ?SupportTicket
+    {
+        return SupportTicket::fromArray([
+            'name' => $this->singleLine($data['name'] ?? ''),
+            'email' => $this->singleLine($data['email'] ?? ''),
+            'subject' => $this->singleLine($data['subject'] ?? ''),
+            'message' => trim(is_scalar($data['message'] ?? null) ? (string) $data['message'] : ''),
+        ]);
+    }
+
+    /**
+     * @throws Exception|TransportExceptionInterface
+     */
+    private function deliver(SupportTicket $ticket): void
+    {
+        $this->mailer->setReplyTo($ticket->email, $ticket->name);
+        $this->mailer->addTo($this->configuration->getAdminEmail());
+        // The mail is sent from the support address, so replying to all also reaches the visitor
+        $this->mailer->addCc($ticket->email, $ticket->name);
+        $this->mailer->subject = $ticket->subject;
+        $this->mailer->message = $this->renderMessage($ticket);
+        // Delivered right away, so the visitor learns about a failure instead of losing the ticket
+        $this->mailer->send(forceSynchronousDelivery: true);
+    }
+
+    /**
+     * Mailvio answers RCPT TO with "500 Email Address Unsubscribed Previously" for such an address.
+     */
+    private function refusedAsUnsubscribed(Throwable $exception): bool
+    {
+        return stripos($exception->getMessage(), self::UNSUBSCRIBED_REFUSAL) !== false;
+    }
+
+    private function askToResubscribe(SupportTicket $ticket, Throwable $exception): JsonResponse
+    {
+        $this->configuration
+            ->getLogger()
+            ->info('Support ticket held until the visitor re-subscribes: ' . $exception->getMessage());
+        $ticketId = new PendingSupportTickets($this->session)->hold($ticket);
+        $resubscribeLabel = Translation::getString(key: 'msgSupportTicketResubscribe');
+
+        return $this->json([
+            'error' => sprintf(
+                Translation::getString(key: 'msgSupportTicketUnsubscribed'),
+                $ticket->email,
+                $resubscribeLabel,
+                $this->configuration->getAdminEmail(),
+            ),
+            'unsubscribed' => [
+                'email' => $ticket->email,
+                'ticketId' => $ticketId,
+                'resubscribeLabel' => $resubscribeLabel,
+            ],
+        ], Response::HTTP_CONFLICT);
+    }
+
+    private function sendFailed(SupportTicket $ticket, Throwable $exception): JsonResponse
+    {
+        $this->configuration->getLogger()->error('Sending a support ticket failed: ' . $exception->getMessage());
+        $this->alertNotifier->alert(self::ALERT_TOPIC, $this->renderAlert($exception->getMessage(), $ticket));
+
+        // Not 502: Cloudflare replaces the body of a 502 with its own error page
+        return $this->json(['error' => sprintf(
+            Translation::getString(key: 'msgSupportTicketSendFailed'),
+            $this->configuration->getAdminEmail(),
+        )], Response::HTTP_SERVICE_UNAVAILABLE);
     }
 
     /**
@@ -144,7 +259,7 @@ final class SupportTicketController extends AbstractController
     /**
      * The visitor's input goes into a code block, so it cannot mention people or format the alert.
      */
-    private function renderAlert(string $error, string $name, string $email, string $subject, string $message): string
+    private function renderAlert(string $error, SupportTicket $ticket): string
     {
         $codeBlock = static fn(string $value): string => str_replace(search: '```', replace: "'''", subject: $value);
 
@@ -153,14 +268,14 @@ final class SupportTicketController extends AbstractController
             . "**Mail server error:** %s\n\n```text\nName: %s\nEmail: %s\nSubject: %s\n\n%s\n```",
             $this->configuration->getAdminEmail(),
             $codeBlock($error),
-            $codeBlock($name),
-            $codeBlock($email),
-            $codeBlock($subject),
-            $codeBlock($message),
+            $codeBlock($ticket->name),
+            $codeBlock($ticket->email),
+            $codeBlock($ticket->subject),
+            $codeBlock($ticket->message),
         );
     }
 
-    private function renderMessage(string $name, string $email, string $subject, string $message): string
+    private function renderMessage(SupportTicket $ticket): string
     {
         $escape = static fn(string $value): string => htmlspecialchars(
             $value,
@@ -171,12 +286,12 @@ final class SupportTicketController extends AbstractController
         return sprintf(
             '%s: %s<br>%s: %s<br>%s: %s<br><br>%s',
             $escape(Translation::getString(key: 'msgSupportTicketName')),
-            $escape($name),
+            $escape($ticket->name),
             $escape(Translation::getString(key: 'msgSupportTicketEmail')),
-            $escape($email),
+            $escape($ticket->email),
             $escape(Translation::getString(key: 'msgSupportTicketSubject')),
-            $escape($subject),
-            nl2br($escape($message)),
+            $escape($ticket->subject),
+            nl2br($escape($ticket->message)),
         );
     }
 }
