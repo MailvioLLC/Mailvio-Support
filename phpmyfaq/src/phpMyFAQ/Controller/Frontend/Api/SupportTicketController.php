@@ -24,8 +24,8 @@ use phpMyFAQ\Controller\AbstractController;
 use phpMyFAQ\Core\Exception;
 use phpMyFAQ\Http\RateLimiter;
 use phpMyFAQ\Mail;
-use phpMyFAQ\Mailvio\ResubscribeFailed;
-use phpMyFAQ\Mailvio\Resubscriber;
+use phpMyFAQ\Mailvio\MailvioRequestFailed;
+use phpMyFAQ\Mailvio\Subscriptions;
 use phpMyFAQ\Session\Token;
 use phpMyFAQ\SupportTicket\PendingSupportTickets;
 use phpMyFAQ\SupportTicket\SupportTicket;
@@ -65,7 +65,7 @@ final class SupportTicketController extends AbstractController
     public function __construct(
         private readonly Mail $mailer,
         private readonly AlertNotifier $alertNotifier,
-        private readonly Resubscriber $resubscriber,
+        private readonly Subscriptions $subscriptions,
         ?RateLimiter $rateLimiter = null,
     ) {
         $this->rateLimiter = $rateLimiter ?? new RateLimiter();
@@ -110,11 +110,18 @@ final class SupportTicketController extends AbstractController
             return $this->json(['error' => $this->captchaFailedMessage()], Response::HTTP_BAD_REQUEST);
         }
 
+        if ($this->isUnsubscribedFromTransactionalEmails($ticket->email)) {
+            return $this->askToResubscribe(
+                $ticket,
+                'Mailvio lists the address as unsubscribed from transactional emails',
+            );
+        }
+
         try {
             $this->deliver($ticket);
         } catch (Exception|TransportExceptionInterface $exception) {
             if ($this->refusedAsUnsubscribed($exception)) {
-                return $this->askToResubscribe($ticket, $exception);
+                return $this->askToResubscribe($ticket, $exception->getMessage());
             }
 
             return $this->sendFailed($ticket, $exception);
@@ -163,9 +170,9 @@ final class SupportTicketController extends AbstractController
         }
 
         try {
-            $this->resubscriber->resubscribe($ticket->email);
+            $this->subscriptions->resubscribe($ticket->email);
             $this->deliver($ticket);
-        } catch (ResubscribeFailed|Exception|TransportExceptionInterface $exception) {
+        } catch (MailvioRequestFailed|Exception|TransportExceptionInterface $exception) {
             return $this->sendFailed($ticket, $exception);
         }
 
@@ -210,11 +217,30 @@ final class SupportTicketController extends AbstractController
         return stripos($exception->getMessage(), self::UNSUBSCRIBED_REFUSAL) !== false;
     }
 
-    private function askToResubscribe(SupportTicket $ticket, Throwable $exception): JsonResponse
+    /**
+     * Checked before sending: Mailvio refuses such a mail only after taking it, and still delivers the
+     * support copy without the visitor, which the mailbox bridge cannot turn into a ticket. When the
+     * API cannot answer, the ticket is sent anyway and a refusal is handled afterwards.
+     */
+    private function isUnsubscribedFromTransactionalEmails(string $emailAddress): bool
     {
-        $this->configuration
-            ->getLogger()
-            ->info('Support ticket held until the visitor re-subscribes: ' . $exception->getMessage());
+        try {
+            return $this->subscriptions->isUnsubscribedFromTransactionalEmails($emailAddress);
+        } catch (MailvioRequestFailed $exception) {
+            $this->configuration
+                ->getLogger()
+                ->warning(
+                    'Could not check the Mailvio subscription before sending a support ticket: '
+                        . $exception->getMessage(),
+                );
+
+            return false;
+        }
+    }
+
+    private function askToResubscribe(SupportTicket $ticket, string $reason): JsonResponse
+    {
+        $this->configuration->getLogger()->info('Support ticket held until the visitor re-subscribes: ' . $reason);
         $ticketId = new PendingSupportTickets($this->session)->hold($ticket);
         $resubscribeLabel = Translation::getString(key: 'msgSupportTicketResubscribe');
 

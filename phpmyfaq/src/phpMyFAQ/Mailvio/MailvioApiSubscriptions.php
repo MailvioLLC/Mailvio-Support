@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Re-subscribes an email address through the Mailvio REST API (apiv2.mailvio.com).
+ * Looks up and changes subscriptions through the Mailvio REST API (apiv2.mailvio.com).
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License,
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
@@ -31,9 +31,12 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *
  * @see https://github.com/MailvioLLC/mailvio-api/tree/master/docs/API
  */
-final readonly class MailvioApiResubscriber implements Resubscriber
+final readonly class MailvioApiSubscriptions implements Subscriptions
 {
     public const string DEFAULT_BASE_URL = 'https://apiv2.mailvio.com';
+
+    /** Mailvio adds every recipient of a transactional mail to this group and checks it before sending. */
+    public const string TRANSACTIONAL_GROUP_NAME = 'Transactional Emails';
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -48,15 +51,34 @@ final readonly class MailvioApiResubscriber implements Resubscriber
         return new self($httpClient, (string) Environment::get('MAILVIO_API_KEY', ''));
     }
 
+    public function isUnsubscribedFromTransactionalEmails(string $emailAddress): bool
+    {
+        $this->assertApiKey();
+        $transactionalGroupId = $this->transactionalGroupId();
+
+        foreach ($this->findSubscribers($emailAddress) as $subscriber) {
+            if (in_array(
+                $transactionalGroupId,
+                $this->unsubscribedGroupIds($this->intValue($subscriber, 'id')),
+                strict: true,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function resubscribe(string $emailAddress): void
     {
-        if ($this->apiKey === '') {
-            throw new ResubscribeFailed('Cannot re-subscribe: set MAILVIO_API_KEY in phpmyfaq/.env.');
-        }
+        $this->assertApiKey();
 
         $subscribers = $this->findSubscribers($emailAddress);
         if ($subscribers === []) {
-            throw new ResubscribeFailed(sprintf('Cannot re-subscribe: Mailvio has no subscriber "%s".', $emailAddress));
+            throw new MailvioRequestFailed(sprintf(
+                'Cannot re-subscribe: Mailvio has no subscriber "%s".',
+                $emailAddress,
+            ));
         }
 
         foreach ($subscribers as $subscriber) {
@@ -67,6 +89,26 @@ final readonly class MailvioApiResubscriber implements Resubscriber
                 ]);
             }
         }
+    }
+
+    private function assertApiKey(): void
+    {
+        if ($this->apiKey === '') {
+            throw new MailvioRequestFailed('Cannot reach the Mailvio API: set MAILVIO_API_KEY in phpmyfaq/.env.');
+        }
+    }
+
+    private function transactionalGroupId(): int
+    {
+        foreach ($this->listValue($this->request('GET', '/group', ['query' => [
+            'limit' => 1000,
+        ]]), 'Groups') as $group) {
+            if ($this->stringValue($group, 'groupName') === self::TRANSACTIONAL_GROUP_NAME) {
+                return $this->intValue($group, 'id');
+            }
+        }
+
+        throw new MailvioRequestFailed(sprintf('Mailvio has no group "%s".', self::TRANSACTIONAL_GROUP_NAME));
     }
 
     /**
@@ -151,7 +193,7 @@ final readonly class MailvioApiResubscriber implements Resubscriber
     /**
      * @param array<string, mixed> $options
      * @return array<array-key, mixed>
-     * @throws ResubscribeFailed
+     * @throws MailvioRequestFailed
      */
     private function request(string $method, string $path, array $options): array
     {
@@ -164,14 +206,14 @@ final readonly class MailvioApiResubscriber implements Resubscriber
             $status = $response->getStatusCode();
             $body = $response->getContent(throw: false);
         } catch (ExceptionInterface $exception) {
-            throw new ResubscribeFailed(
+            throw new MailvioRequestFailed(
                 sprintf('Mailvio API %s %s failed: %s', $method, $path, $exception->getMessage()),
                 previous: $exception,
             );
         }
 
         if ($status < 200 || $status >= 300) {
-            throw new ResubscribeFailed(sprintf(
+            throw new MailvioRequestFailed(sprintf(
                 'Mailvio API %s %s answered HTTP %d: %s',
                 $method,
                 $path,

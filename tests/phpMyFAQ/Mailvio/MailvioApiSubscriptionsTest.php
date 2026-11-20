@@ -9,15 +9,15 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-#[CoversClass(MailvioApiResubscriber::class)]
-final class MailvioApiResubscriberTest extends TestCase
+#[CoversClass(MailvioApiSubscriptions::class)]
+final class MailvioApiSubscriptionsTest extends TestCase
 {
     /** @var list<array{method: string, url: string, body: string, token: string}> */
     private array $requests = [];
 
     public function testReactivatesTheSubscriberInEveryGroupTheyUnsubscribedFrom(): void
     {
-        $resubscriber = $this->resubscriber([
+        $subscriptions = $this->subscriptions([
             $this->json(['count' => 1, 'Subscribers' => [$this->searchResult(42, 'jane@example.com')]]),
             $this->json([
                 'Subscriber' => [
@@ -33,7 +33,7 @@ final class MailvioApiResubscriberTest extends TestCase
             $this->json(['Success' => true]),
         ]);
 
-        $resubscriber->resubscribe('jane@example.com');
+        $subscriptions->resubscribe('jane@example.com');
 
         self::assertCount(4, $this->requests);
         self::assertSame('GET', $this->requests[0]['method']);
@@ -49,9 +49,76 @@ final class MailvioApiResubscriberTest extends TestCase
         self::assertSame('x-access-token: secret-key', $this->requests[3]['token']);
     }
 
+    public function testTellsWhetherTheAddressUnsubscribedFromTransactionalEmails(): void
+    {
+        $subscriptions = $this->subscriptions([
+            $this->json([
+                'Groups' => [
+                    ['id' => 130048, 'groupName' => 'cu_mailvio_overall'],
+                    ['id' => 116738, 'groupName' => 'Transactional Emails'],
+                ],
+            ]),
+            $this->json(['count' => 1, 'Subscribers' => [$this->searchResult(42, 'jane@example.com')]]),
+            $this->json([
+                'Subscriber' => [
+                    'id' => 42,
+                    'GroupSubscribers' => [
+                        ['unsubscribe' => false, 'active' => true, 'GroupId' => 130048],
+                        ['unsubscribe' => true, 'active' => false, 'GroupId' => 116738],
+                    ],
+                ],
+            ]),
+        ]);
+
+        self::assertTrue($subscriptions->isUnsubscribedFromTransactionalEmails('jane@example.com'));
+        self::assertStringStartsWith('https://apiv2.mailvio.com/group?', $this->requests[0]['url']);
+    }
+
+    public function testDoesNotCountOtherGroupsAsUnsubscribedFromTransactionalEmails(): void
+    {
+        $subscriptions = $this->subscriptions([
+            $this->json(['Groups' => [['id' => 116738, 'groupName' => 'Transactional Emails']]]),
+            $this->json(['count' => 1, 'Subscribers' => [$this->searchResult(42, 'jane@example.com')]]),
+            $this->json([
+                'Subscriber' => [
+                    'id' => 42,
+                    'GroupSubscribers' => [
+                        ['unsubscribe' => true, 'active' => false, 'GroupId' => 130048],
+                        ['unsubscribe' => false, 'active' => true, 'GroupId' => 116738],
+                    ],
+                ],
+            ]),
+        ]);
+
+        self::assertFalse($subscriptions->isUnsubscribedFromTransactionalEmails('jane@example.com'));
+    }
+
+    public function testAnUnknownAddressIsNotUnsubscribed(): void
+    {
+        $subscriptions = $this->subscriptions([
+            $this->json(['Groups' => [['id' => 116738, 'groupName' => 'Transactional Emails']]]),
+            $this->json(['count' => 0, 'Subscribers' => []]),
+            $this->json(['count' => 0, 'Subscribers' => []]),
+        ]);
+
+        self::assertFalse($subscriptions->isUnsubscribedFromTransactionalEmails('new@example.com'));
+    }
+
+    public function testFailsWhenTheTransactionalGroupIsMissing(): void
+    {
+        $subscriptions = $this->subscriptions([
+            $this->json(['Groups' => [['id' => 130048, 'groupName' => 'cu_mailvio_overall']]]),
+        ]);
+
+        $this->expectException(MailvioRequestFailed::class);
+        $this->expectExceptionMessage('Mailvio has no group "Transactional Emails".');
+
+        $subscriptions->isUnsubscribedFromTransactionalEmails('jane@example.com');
+    }
+
     public function testFindsAPlusAddressByThePartBeforeTheAt(): void
     {
-        $resubscriber = $this->resubscriber([
+        $subscriptions = $this->subscriptions([
             $this->json(['count' => 0, 'Subscribers' => []]),
             $this->json([
                 'count' => 2,
@@ -71,7 +138,7 @@ final class MailvioApiResubscriberTest extends TestCase
             $this->json(['Success' => true]),
         ]);
 
-        $resubscriber->resubscribe('jane+tag@example.com');
+        $subscriptions->resubscribe('jane+tag@example.com');
 
         self::assertStringContainsString('search=jane%2Btag', $this->requests[1]['url']);
         self::assertSame('https://apiv2.mailvio.com/subscriber/8', $this->requests[2]['url']);
@@ -80,53 +147,53 @@ final class MailvioApiResubscriberTest extends TestCase
 
     public function testFailsWhenMailvioHasNoSuchSubscriber(): void
     {
-        $resubscriber = $this->resubscriber([
+        $subscriptions = $this->subscriptions([
             $this->json(['count' => 1, 'Subscribers' => [$this->searchResult(9, 'janet@example.com')]]),
             $this->json(['count' => 1, 'Subscribers' => [$this->searchResult(9, 'janet@example.com')]]),
         ]);
 
-        $this->expectException(ResubscribeFailed::class);
+        $this->expectException(MailvioRequestFailed::class);
         $this->expectExceptionMessage('Mailvio has no subscriber "jane@example.com"');
 
-        $resubscriber->resubscribe('jane@example.com');
+        $subscriptions->resubscribe('jane@example.com');
     }
 
     public function testFailsWithTheApiAnswerWhenARequestIsRefused(): void
     {
-        $resubscriber = $this->resubscriber([
+        $subscriptions = $this->subscriptions([
             new MockResponse('{"error":"Invalid token"}', ['http_code' => 401]),
         ]);
 
-        $this->expectException(ResubscribeFailed::class);
+        $this->expectException(MailvioRequestFailed::class);
         $this->expectExceptionMessage('Mailvio API GET /subscriber answered HTTP 401: {"error":"Invalid token"}');
 
-        $resubscriber->resubscribe('jane@example.com');
+        $subscriptions->resubscribe('jane@example.com');
     }
 
     public function testFailsWhenTheApiCannotBeReached(): void
     {
-        $resubscriber = $this->resubscriber([new MockResponse('', ['error' => 'Connection timed out'])]);
+        $subscriptions = $this->subscriptions([new MockResponse('', ['error' => 'Connection timed out'])]);
 
-        $this->expectException(ResubscribeFailed::class);
+        $this->expectException(MailvioRequestFailed::class);
         $this->expectExceptionMessage('Mailvio API GET /subscriber failed: Connection timed out');
 
-        $resubscriber->resubscribe('jane@example.com');
+        $subscriptions->resubscribe('jane@example.com');
     }
 
     public function testFailsWithoutAnApiKeyBeforeCallingTheApi(): void
     {
-        $resubscriber = new MailvioApiResubscriber(new MockHttpClient([]), apiKey: '');
+        $subscriptions = new MailvioApiSubscriptions(new MockHttpClient([]), apiKey: '');
 
-        $this->expectException(ResubscribeFailed::class);
+        $this->expectException(MailvioRequestFailed::class);
         $this->expectExceptionMessage('set MAILVIO_API_KEY in phpmyfaq/.env');
 
-        $resubscriber->resubscribe('jane@example.com');
+        $subscriptions->resubscribe('jane@example.com');
     }
 
     /**
      * @param list<MockResponse> $responses
      */
-    private function resubscriber(array $responses): MailvioApiResubscriber
+    private function subscriptions(array $responses): MailvioApiSubscriptions
     {
         $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$responses) {
             $this->requests[] = [
@@ -142,7 +209,7 @@ final class MailvioApiResubscriberTest extends TestCase
             return array_shift($responses) ?? new MockResponse('unexpected request', ['http_code' => 500]);
         });
 
-        return new MailvioApiResubscriber($client, 'secret-key');
+        return new MailvioApiSubscriptions($client, 'secret-key');
     }
 
     /**

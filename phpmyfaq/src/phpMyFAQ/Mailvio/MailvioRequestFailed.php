@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Re-subscribes an email address that unsubscribed from the Mailvio account the site sends from.
+ * Raised when a request to the Mailvio API fails or Mailvio lacks the expected data.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License,
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
@@ -19,10 +19,6 @@ declare(strict_types=1);
 
 namespace phpMyFAQ\Mailvio;
 
-interface Resubscriber
-{
-    /**
-     * @throws ResubscribeFailed when the address could not be re-subscribed
-     */
-    public function resubscribe(string $emailAddress): void;
-}
+use RuntimeException;
+
+final class MailvioRequestFailed extends RuntimeException {}

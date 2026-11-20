@@ -6,8 +6,8 @@ namespace phpMyFAQ\Controller\Frontend\Api;
 
 use phpMyFAQ\Alert\AlertNotifier;
 use phpMyFAQ\Mail;
-use phpMyFAQ\Mailvio\ResubscribeFailed;
-use phpMyFAQ\Mailvio\Resubscriber;
+use phpMyFAQ\Mailvio\MailvioRequestFailed;
+use phpMyFAQ\Mailvio\Subscriptions;
 use phpMyFAQ\Session\Token;
 use phpMyFAQ\User\CurrentUser;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -285,18 +285,45 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $payload['unsubscribed']['ticketId']);
     }
 
+    public function testHoldsTheTicketWithoutSendingWhenMailvioListsTheAddressAsUnsubscribed(): void
+    {
+        $mailer = $this->createMock(Mail::class);
+        $mailer->expects($this->never())->method('send');
+        $subscriptions = $this->createStub(Subscriptions::class);
+        $subscriptions->method('isUnsubscribedFromTransactionalEmails')->willReturn(true);
+
+        $response = $this->send($this->createController($mailer, subscriptions: $subscriptions), self::VALID_TICKET);
+
+        self::assertSame(Response::HTTP_CONFLICT, $response->getStatusCode());
+        self::assertSame('jane@example.com', $this->payload($response)['unsubscribed']['email']);
+    }
+
+    public function testSendsTheTicketWhenTheSubscriptionCannotBeChecked(): void
+    {
+        $mailer = $this->createMock(Mail::class);
+        $mailer->expects($this->once())->method('send');
+        $subscriptions = $this->createStub(Subscriptions::class);
+        $subscriptions
+            ->method('isUnsubscribedFromTransactionalEmails')
+            ->willThrowException(new MailvioRequestFailed('Mailvio API GET /group failed: timeout'));
+
+        $response = $this->send($this->createController($mailer, subscriptions: $subscriptions), self::VALID_TICKET);
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+    }
+
     public function testResubscribesTheHeldAddressAndSendsTheHeldTicket(): void
     {
         $session = $this->createSession();
         $ticketId = $this->holdUnsubscribedTicket($session);
 
-        $resubscriber = $this->createMock(Resubscriber::class);
-        $resubscriber->expects($this->once())->method('resubscribe')->with('jane@example.com');
+        $subscriptions = $this->createMock(Subscriptions::class);
+        $subscriptions->expects($this->once())->method('resubscribe')->with('jane@example.com');
         $mailer = $this->createMock(Mail::class);
         $mailer->expects($this->once())->method('addCc')->with('jane@example.com', 'Jane Doe');
         $mailer->expects($this->once())->method('send')->with(true);
 
-        $response = $this->resubscribe($this->createController($mailer, resubscriber: $resubscriber), $session, [
+        $response = $this->resubscribe($this->createController($mailer, subscriptions: $subscriptions), $session, [
             'ticketId' => $ticketId,
             'email' => 'someone-else@example.com',
         ]);
@@ -329,11 +356,11 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
 
     public function testRefusesToResubscribeWithoutAHeldTicket(): void
     {
-        $resubscriber = $this->createMock(Resubscriber::class);
-        $resubscriber->expects($this->never())->method('resubscribe');
+        $subscriptions = $this->createMock(Subscriptions::class);
+        $subscriptions->expects($this->never())->method('resubscribe');
 
         $response = $this->resubscribe(
-            $this->createController($this->createStub(Mail::class), resubscriber: $resubscriber),
+            $this->createController($this->createStub(Mail::class), subscriptions: $subscriptions),
             $this->createSession(),
             ['ticketId' => 'unknown', 'email' => 'victim@example.com'],
         );
@@ -345,9 +372,9 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     {
         $session = $this->createSession();
         $ticketId = $this->holdUnsubscribedTicket($session);
-        $resubscriber = $this->createMock(Resubscriber::class);
-        $resubscriber->expects($this->never())->method('resubscribe');
-        $controller = $this->createController($this->createStub(Mail::class), resubscriber: $resubscriber);
+        $subscriptions = $this->createMock(Subscriptions::class);
+        $subscriptions->expects($this->never())->method('resubscribe');
+        $controller = $this->createController($this->createStub(Mail::class), subscriptions: $subscriptions);
         $this->injectControllerState($controller, $this->createAuthenticatedUserMock(), $session);
 
         $response = $controller->resubscribe(Request::create(
@@ -363,8 +390,8 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     {
         $session = $this->createSession();
         $ticketId = $this->holdUnsubscribedTicket($session);
-        $resubscriber = $this->createStub(Resubscriber::class);
-        $resubscriber->method('resubscribe')->willThrowException(new ResubscribeFailed('Mailvio API answered 401'));
+        $subscriptions = $this->createStub(Subscriptions::class);
+        $subscriptions->method('resubscribe')->willThrowException(new MailvioRequestFailed('Mailvio API answered 401'));
         $mailer = $this->createMock(Mail::class);
         $mailer->expects($this->never())->method('send');
         $alertNotifier = $this->createMock(AlertNotifier::class);
@@ -376,7 +403,7 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
                 self::stringContains('Email: jane@example.com'),
             ));
 
-        $response = $this->resubscribe($this->createController($mailer, $alertNotifier, $resubscriber), $session, [
+        $response = $this->resubscribe($this->createController($mailer, $alertNotifier, $subscriptions), $session, [
             'ticketId' => $ticketId,
         ]);
 
@@ -436,12 +463,12 @@ final class SupportTicketControllerTest extends ApiControllerTestCase
     private function createController(
         Mail $mailer,
         ?AlertNotifier $alertNotifier = null,
-        ?Resubscriber $resubscriber = null,
+        ?Subscriptions $subscriptions = null,
     ): SupportTicketController {
         return new SupportTicketController(
             $mailer,
             $alertNotifier ?? $this->createStub(AlertNotifier::class),
-            $resubscriber ?? $this->createStub(Resubscriber::class),
+            $subscriptions ?? $this->createStub(Subscriptions::class),
         );
     }
 
