@@ -157,7 +157,9 @@ final class FaqController extends AbstractAdministrationApiController
         }
 
         $sticky = Filter::filterVar($data->sticky ?? 'no', FILTER_SANITIZE_SPECIAL_CHARS, 'no');
-        $content = Filter::filterVar($data->answer ?? '', FILTER_SANITIZE_SPECIAL_CHARS, '');
+        // The answer is HTML from the editor: only the HtmlSanitizer may filter it, since
+        // FILTER_SANITIZE_SPECIAL_CHARS strips every tag
+        $content = Filter::removeAttributes(is_string($data->answer ?? null) ? $data->answer : '');
         $keywords = Filter::filterVar($data->keywords ?? '', FILTER_SANITIZE_SPECIAL_CHARS, '');
         $author = Filter::filterVar($data->author ?? '', FILTER_SANITIZE_SPECIAL_CHARS, '');
         $email = (string) Filter::filterEmail($data->email ?? '', default: '');
@@ -187,11 +189,7 @@ final class FaqController extends AbstractAdministrationApiController
                 ENT_QUOTES | ENT_HTML5,
                 encoding: 'UTF-8',
             )))
-            ->setAnswer(Filter::removeAttributes(html_entity_decode(
-                $content,
-                ENT_QUOTES | ENT_HTML5,
-                encoding: 'UTF-8',
-            )))
+            ->setAnswer($content)
             ->setKeywords($keywords)
             ->setAuthor($author)
             ->setEmail($email)
@@ -442,7 +440,9 @@ final class FaqController extends AbstractAdministrationApiController
             [...$categories, ...$currentCategoryIds],
         );
         $sticky = Filter::filterVar($data->sticky ?? 'no', FILTER_SANITIZE_SPECIAL_CHARS, 'no');
-        $content = Filter::filterVar($data->answer ?? '', FILTER_SANITIZE_SPECIAL_CHARS, '');
+        // The answer is HTML from the editor: only the HtmlSanitizer may filter it, since
+        // FILTER_SANITIZE_SPECIAL_CHARS strips every tag
+        $content = Filter::removeAttributes(is_string($data->answer ?? null) ? $data->answer : '');
         $keywords = Filter::filterVar($data->keywords ?? '', FILTER_SANITIZE_SPECIAL_CHARS, '');
         $author = Filter::filterVar($data->author ?? '', FILTER_SANITIZE_SPECIAL_CHARS, '');
         $email = (string) Filter::filterEmail($data->email ?? '', default: '');
@@ -495,11 +495,7 @@ final class FaqController extends AbstractAdministrationApiController
                 ENT_QUOTES | ENT_HTML5,
                 encoding: 'UTF-8',
             )))
-            ->setAnswer(Filter::removeAttributes(html_entity_decode(
-                $content,
-                ENT_QUOTES | ENT_HTML5,
-                encoding: 'UTF-8',
-            )))
+            ->setAnswer($content)
             ->setKeywords($keywords)
             ->setAuthor($author)
             ->setEmail($email)

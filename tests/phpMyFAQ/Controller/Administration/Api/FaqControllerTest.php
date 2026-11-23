@@ -2666,6 +2666,54 @@ final class FaqControllerTest extends TestCase
     }
 
     /**
+     * The answer is editor HTML: saving must keep its markup, and must not turn an escaped
+     * code sample like &lt;script&gt; into a real tag.
+     */
+    public function testUpdateKeepsTheAnswerHtmlFromTheEditor(): void
+    {
+        $this->seedFaqRecord(question: 'Original FAQ');
+
+        $session = new Session(new MockArraySessionStorage());
+        $csrfToken = Token::getInstance($session)->getTokenString('pmf-csrf-token');
+        $this->setCsrfCookie('pmf-csrf-token', $csrfToken);
+
+        $answer = '<h2>Step 1: Log in</h2><p>You&#039;ll find <strong>two</strong> options:</p>'
+            . '<ul><li><a href="https://app.mailvio.com/" target="_blank">Embedded Forms</a></li></ul>'
+            . '<p><code>&lt;script src="form.js"&gt;&lt;/script&gt;</code></p>';
+        $request = $this->createRequestForFaqUpdate($csrfToken, status: 'draft', answer: $answer);
+
+        $persisted = null;
+        $faq = $this->createMock(Faq::class);
+        $faq->method('hasTranslation')->willReturn(true);
+        $faq->method('getStatus')->willReturn(FaqStatus::Draft);
+        $faq->expects($this->once())
+            ->method('update')
+            ->willReturnCallback(static function (\phpMyFAQ\Entity\FaqEntity $faqEntity) use (&$persisted): \phpMyFAQ\Entity\FaqEntity {
+                $persisted = $faqEntity;
+
+                return $faqEntity;
+            });
+
+        $controller = $this->createControllerWithFaq($faq);
+        $controller->setContainer($this->createContainerWithoutPublishPermission($session));
+
+        try {
+            $response = $controller->update($request);
+        } finally {
+            $this->removeCsrfCookie('pmf-csrf-token');
+        }
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertInstanceOf(\phpMyFAQ\Entity\FaqEntity::class, $persisted);
+        $saved = $persisted->getAnswer();
+        self::assertStringContainsString('<h2>Step 1: Log in</h2>', $saved);
+        self::assertStringContainsString('<strong>two</strong>', $saved);
+        self::assertStringContainsString('<ul><li><a href="https://app.mailvio.com/"', $saved);
+        self::assertStringContainsString('&lt;script', $saved);
+        self::assertStringNotContainsString('<script', $saved);
+    }
+
+    /**
      * The editor omits the "status" field for a user without the publish right, and an absent
      * field must not be read as "draft" — that would unpublish a live FAQ on an ordinary save.
      */
@@ -3011,7 +3059,11 @@ final class FaqControllerTest extends TestCase
         ], JSON_THROW_ON_ERROR));
     }
 
-    private function createRequestForFaqUpdate(string $csrfToken, ?string $status): Request
+    private function createRequestForFaqUpdate(
+        string $csrfToken,
+        ?string $status,
+        string $answer = 'Updated answer',
+    ): Request
     {
         $data = [
             'pmf-csrf-token' => $csrfToken,
@@ -3023,7 +3075,7 @@ final class FaqControllerTest extends TestCase
             'lang' => 'en',
             'tags' => '',
             'sticky' => 'no',
-            'answer' => 'Updated answer',
+            'answer' => $answer,
             'keywords' => 'updated',
             'author' => 'Author',
             'email' => 'author@example.com',
